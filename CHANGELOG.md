@@ -4,6 +4,56 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [Desktop updater v1.2.0] — Tauri auto-atualizável (updater assinado + latest) — OK
+
+- **Auto-update ponta a ponta**:
+  - `tauri-plugin-updater` + `tauri-plugin-process` no Rust, capabilities
+    `updater:default` + `process:default`, `createUpdaterArtifacts: true` e
+    endpoint `releases/latest/download/latest.json` com pubkey;
+  - `TauriUpdateButton` (`/` e `/session`): buscar → baixar → instalar →
+    relaunch; fora do Tauri vira `null` (web/PWA intactos);
+  - `.github/workflows/tauri-release.yml`: tag `v*` → build multi-plataforma,
+    assinatura e draft release com `latest.json`.
+- **Últimas versões instaladas**: npm `@tauri-apps/{api 2.11.1, cli 2.11.4,
+  plugin-updater 2.11.0, plugin-process 2.3.1}`; cargo `tauri 2.11.5`,
+  `updater 2.11.0`, `process 2.3.1`, `log 2.9.1` (`cargo update`).
+- **Export estático p/ Tauri sem quebrar a web**: `TAURI_BUILD=1` ativa
+  `output: export` (`build:tauri`); editor ganhou rota estática
+  `/compose/editor?id=` (links migrados; `/compose/[id]` segue na web).
+- **Chaves**: privada em `~/.tauri/lookamusic.key` (600, fora do repo);
+  pública no `tauri.conf.json`. Gotcha registrado: o bundler lê o CONTEÚDO
+  (`TAURI_SIGNING_PRIVATE_KEY`), não `_PATH`.
+- **Build local assinado**: `LookaMusic_1.2.0_aarch64.dmg` +
+  `LookaMusic.app.tar.gz` + `.sig` gerados com sucesso.
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **595/595 verdes** (72 arquivos);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build` e `npm run build:tauri`: **verdes**;
+  - E2E `compose.spec`: **1 passed** (após fix de hidratação no botão).
+
+## [Fix hum-first] — Cantarolar primeiro + anti-eco + detector estável — OK
+
+- **Fluxo em 2 etapas (`/session`, painel CANTAROLAR PRIMEIRO)**:
+  - `1. CANTAROLAR (BANDA MUDA)`: mic aberto, banda do regente mutada — só
+    captura a melodia em silêncio, sem o ciclo mic-recaptura-banda;
+  - `2. TOCAR A BANDA`: `buildPlayAlongComposition` congela a cantarolada em
+    Composition (rebase p/ 0.5 s, acordes deslocados junto, fallback do tom)
+    e o `CompositionPlayer` toca em loop; o mic segue aberto só p/
+    acompanhamento visual (coach/energia), sem re-disparar a banda;
+  - `SALVAR MÚSICA` persiste no IndexedDB (aparece em PROJETOS).
+- **Causa raiz do modo ao vivo**:
+  - `src/features/audio/session.ts`: `echoCancellation/noiseSuppression`
+    ligados (mic recapturava os alto-falantes → notas fantasmas + lag);
+  - `public/worklets/pitch-processor.js`: peak-picking alinhado ao TS
+    (primeiro máximo local, não argmax global → sem colapso de oitava).
+- **Arquivos**: `src/features/recording/playalong.ts` (novo),
+  `tests/unit/recording-playalong.test.ts` (3 novos),
+  `src/app/session/page.tsx` (painel), `session.ts`, `pitch-processor.js`.
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **593/593 verdes** (71 arquivos);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build`: **verde**, 6 rotas.
+
 ## [Overhaul 1.3] — Live Audio Engine Fix, Timeline Synthesizer & Neumorphic Vintage Hi-Fi Design — OK
 
 - **Correção Crítica do Motor de Áudio (Live Band & Acompanhamento Imediato)**:

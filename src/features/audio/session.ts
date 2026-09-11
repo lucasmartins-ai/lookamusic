@@ -97,8 +97,13 @@ export class MicSession {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
+          // Hum-first: a banda toca nos alto-falantes enquanto o mic fica
+          // aberto (play-along). Sem echoCancellation o mic recaptura a
+          // própria banda → notas rápidas/fantasmas + lag em cascata.
+          // noiseSuppression ajuda o detector; autoGain fica fora para
+          // preservar a dinâmica do canto (pitch/energia estáveis).
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: false,
         },
       });

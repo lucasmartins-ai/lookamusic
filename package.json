@@ -1,12 +1,13 @@
 {
   "name": "lookamusic",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "LookaMusic — browser-based real-time voice-to-band instrument. You sing, LookaMusic builds the band.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:tauri": "TAURI_BUILD=1 next build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,6 +22,8 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

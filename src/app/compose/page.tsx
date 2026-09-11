@@ -51,7 +51,7 @@ export default function ComposeHubPage() {
       name: `Nova Música ${compositions.length + 1}`,
     });
     await saveComposition(comp);
-    router.push(`/compose/${id}`);
+    router.push(`/compose/editor?id=${id}`);
   };
 
   const handleDelete = async (id: string) => {
@@ -127,7 +127,7 @@ export default function ComposeHubPage() {
                   </p>
                 </div>
                 <div className="controls">
-                  <Link href={`/compose/${comp.id}`} className="primary" style={{ padding: "8px 16px", textDecoration: "none", fontSize: "12px", minWidth: "auto" }}>
+                  <Link href={`/compose/editor?id=${comp.id}`} className="primary" style={{ padding: "8px 16px", textDecoration: "none", fontSize: "12px", minWidth: "auto" }}>
                     <PencilIcon size={13} /> ABRIR NO EDITOR
                   </Link>
                   <button

@@ -54,18 +54,26 @@ class LookaPitchProcessor extends AudioWorkletProcessor {
     const e0 = ac(buf, 0);
     if (e0 <= 1e-9) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
 
+    // Peak-picking: o primeiro máximo local acima do limiar é o período.
+    // (Paridade com AutocorrelationDetector TS: argmax global erra oitava —
+    // a quantização faz o 5º múltiplo correlacionar mais que o período,
+    // medido: C#4 colapsava p/ lag 866 em vez de 173 → notas pulando rápido.)
+    const corr = new Float32Array(maxLag + 2);
+    for (let lag = minLag; lag <= maxLag + 1; lag++) {
+      corr[lag] = ac(buf, Math.min(lag, buf.length - 1)) / e0;
+    }
     let bestLag = -1;
-    let bestCorr = 0;
-    for (let lag = minLag; lag <= maxLag; lag++) {
-      const c = ac(buf, lag) / e0;
-      if (c > bestCorr) {
-        bestCorr = c;
-        bestLag = lag;
+    for (let lag = minLag + 1; lag <= maxLag; lag++) {
+      const c = corr[lag];
+      if (c >= MIN_CONF && c >= corr[lag - 1] && c >= corr[lag + 1]) {
+        bestLag = lag; // first peak wins
+        break;
       }
     }
-    if (bestLag < 0 || bestCorr < MIN_CONF) {
+    if (bestLag < 0) {
       return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
     }
+    const bestCorr = corr[bestLag];
     // Parabolic refinement.
     let refined = bestLag;
     if (bestLag > 1 && bestLag < buf.length - 2) {

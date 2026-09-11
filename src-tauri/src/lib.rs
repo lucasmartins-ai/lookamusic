@@ -9,6 +9,11 @@ pub fn run() {
             .build(),
         )?;
       }
+      // Desktop auto-update (updater) + relaunch after install (process).
+      #[cfg(desktop)]
+      app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+      #[cfg(desktop)]
+      app.handle().plugin(tauri_plugin_process::init())?;
       Ok(())
     })
     .run(tauri::generate_context!())

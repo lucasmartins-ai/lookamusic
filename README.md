@@ -5,12 +5,29 @@
 
 [![Build](https://img.shields.io/badge/Next.js-16_Turbopack-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6_Strict-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-590_Unit_%7C_10_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-595_Unit_%7C_10_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
 [![Tauri v2](https://img.shields.io/badge/Tauri_v2-Ultra--Light_Desktop-24C8DB?style=flat&logo=tauri)](src-tauri)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+---
+
+## 📢 Release v1.2.0 — Cantarolar Primeiro & Desktop Auto-Atualizável
+
+### 🎙️ 1. Cantarolar Primeiro (sem trava) — `/session`
+Novo fluxo em 2 etapas que elimina o ciclo de feedback do modo 100% reativo (mic recaptura a banda → notas fantasmas → lag):
+1. **CANTAROLAR (banda muda)** — só o mic aberto, melodia capturada em silêncio;
+2. **TOCAR A BANDA** — a cantarolada vira música fixa em loop, você canta junto (mic só acompanha);
+3. **SALVAR MÚSICA** — persiste no IndexedDB, abre em PROJETOS.
+- Correções junto: `echoCancellation` + `noiseSuppression` ligados e detector do worklet alinhado ao TS (primeiro pico local, sem colapso de oitava).
+
+### 🔄 2. Tauri auto-atualizável (Mac / Windows / Linux)
+- **Botão BUSCAR ATUALIZAÇÃO** na home e na sessão (só aparece no app desktop): baixa, instala e reinicia sozinho via updater assinado (`latest.json` nos GitHub Releases).
+- **Últimas versões**: Tauri Rust `2.11.5`, JS `api 2.11.1 / cli 2.11.4 / updater 2.11.0`.
+- **Release por tag**: `git tag v* + push` → workflow monta todas as plataformas, assina e abre o draft release. Detalhes em [`docs/tauri-updater.md`](docs/tauri-updater.md).
+- Primeira abertura no macOS (sem assinatura Apple): botão direito → Abrir.
 
 ---
 
@@ -109,6 +126,12 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
+> **Atualização automática:** o app verifica sozinho via `BUSCAR ATUALIZAÇÃO`
+> (updater assinado; releases em `latest.json`). Para publicar uma nova
+> versão: atualize `version` em `package.json` + `tauri.conf.json` + `Cargo.toml`,
+> commite, `git tag vX.Y.Z && git push origin vX.Y.Z` — ver
+> [`docs/tauri-updater.md`](docs/tauri-updater.md).
+
 Os instaladores serão gerados em `src-tauri/target/release/bundle/`:
 - **macOS:** Pacote `.dmg` e aplicativo universal `.app` (Intel e Apple Silicon M1/M2/M3/M4).
 - **Windows:** Instalador `.msi` e executável `.exe`.
@@ -136,7 +159,7 @@ npm run desktop:dist:linux   # Gera instalador Linux
 | [`/`](src/app/page.tsx) | **Início & Sintonizador Analógico** | Onboarding guiado, medidor VU retro, sintonizador dial, visualizador de pitch e status de áudio. |
 | [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. |
 | [`/compose`](src/app/compose/page.tsx) | **Catálogo de Gravações** | Gerenciador de projetos locais salvos no IndexedDB, com visualização de tom, BPM e duração. |
-| [`/compose/[id]`](src/app/compose/[id]/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. |
+| [`/compose/editor?id=`](src/app/compose/editor/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. (`/compose/[id]` segue na web.) |
 | [`/learn`](src/app/learn/page.tsx) | **Laboratório de Teoria** | Pedagogia musical progressiva em 9 níveis (intervalos, tríades, condução de vozes e cadências) com zero LLM. |
 
 ---
@@ -208,7 +231,7 @@ Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vit
 O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Executar todos os testes unitários e benchmarks DSP (590 testes em 70 arquivos)
+# Executar todos os testes unitários e benchmarks DSP (595 testes em 72 arquivos)
 npm test
 
 # Executar checagem estrita de tipos TypeScript (zero erros)

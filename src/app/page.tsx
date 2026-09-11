@@ -25,6 +25,7 @@ import { micStatusCard } from "@/components/statusCards";
 import { detectAudioHealth } from "@/components/audioHealth";
 import { useMicSession } from "@/features/audio/useMicSession";
 import { useConductor } from "@/features/conductor/useConductor";
+import { TauriUpdateButton } from "@/components/TauriUpdateButton";
 import { ArrangementPanel } from "@/components/ArrangementPanel";
 import { freqToNoteName } from "@/features/pitch/conversions";
 import type { TimelineNote, TimelinePhrase } from "@/features/music/useMusicPipeline";
@@ -420,6 +421,10 @@ export default function Home() {
       {showDiag && <DiagnosticsPanel current={current} diagnostics={diagnostics} />}
 
       {helpOpen && <HelpDialog scope="home" onClose={() => setHelpOpen(false)} />}
+
+      <section className="panel" aria-label="Atualização do aplicativo">
+        <TauriUpdateButton />
+      </section>
 
       <footer className="creed">
         Você canta a melodia. O LookaMusic constrói a banda ao vivo.

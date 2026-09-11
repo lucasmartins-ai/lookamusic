@@ -13,6 +13,11 @@ import Link from "next/link";
 import { useMicSession } from "@/features/audio/useMicSession";
 import { useConductor } from "@/features/conductor/useConductor";
 import { useRecorder } from "@/features/recording/useRecorder";
+import { buildPlayAlongComposition } from "@/features/recording/playalong";
+import { CompositionPlayer } from "@/features/recording/player";
+import { saveComposition } from "@/features/recording/storage";
+import { TauriUpdateButton } from "@/components/TauriUpdateButton";
+import type { Composition } from "@/domain/types";
 import { useGestures } from "@/features/gestures/useGestures";
 import { GesturePanel } from "@/components/GesturePanel";
 import { AudioHealthCard, StatusCard } from "@/components/StatusCard";
@@ -63,6 +68,105 @@ function SessionBody() {
   const helpBtnRef = useRef<HTMLButtonElement>(null);
   const wasHelpOpen = useRef(false);
   const running = mic.status === "running";
+
+  // Hum-first (cantarolar → banda toca em loop → você acompanha).
+  // Fase 1 (humming): mic aberto, banda do regente MUTA — só captura a
+  // melodia em silêncio, sem o ciclo mic-recaptura-banda (notas fantasmas).
+  // Fase 2 (playing): CompositionPlayer toca a música fixa em loop; o mic
+  // segue aberto só p/ acompanhamento visual (coach/energia), sem reagir.
+  const [humPhase, setHumPhase] = useState<"idle" | "humming" | "playing">("idle");
+  const [humMsg, setHumMsg] = useState<string | null>(null);
+  const [playComp, setPlayComp] = useState<Composition | null>(null);
+  const [playhead, setPlayhead] = useState(0);
+  const playerRef = useRef<CompositionPlayer | null>(null);
+  const keepLoop = useRef(false);
+  const mutedByHum = useRef<InstrumentId[]>([]);
+
+  const ensurePlayer = () => {
+    if (!playerRef.current) playerRef.current = new CompositionPlayer();
+    return playerRef.current;
+  };
+
+  useEffect(() => {
+    return () => {
+      keepLoop.current = false;
+      playerRef.current?.dispose();
+      playerRef.current = null;
+    };
+  }, []);
+
+  const muteConductorBand = () => {
+    mutedByHum.current = [];
+    const mixer = cond.mixer;
+    if (!mixer) return;
+    for (const id of INSTRUMENTS as readonly InstrumentId[]) {
+      if (cond.active[id] && !mixer[id].muted) {
+        cond.toggleMute(id);
+        mutedByHum.current.push(id);
+      }
+    }
+  };
+
+  const unmuteConductorBand = () => {
+    for (const id of mutedByHum.current) cond.toggleMute(id);
+    mutedByHum.current = [];
+  };
+
+  const startHum = async () => {
+    setHumMsg(null);
+    if (mic.status !== "running") {
+      await mic.start();
+    }
+    muteConductorBand();
+    setPlayComp(null);
+    setPlayhead(0);
+    setHumPhase("humming");
+  };
+
+  const loopPlay = (comp: Composition) => {
+    const player = ensurePlayer();
+    player.play(
+      comp,
+      (sec) => setPlayhead(sec),
+      () => {
+        if (keepLoop.current) loopPlay(comp);
+        else setPlayhead(0);
+      },
+    );
+  };
+
+  const stopHumAndPlay = () => {
+    const comp = buildPlayAlongComposition(cond.getMusicalState(), "Cantarolada");
+    if (!comp) {
+      setHumMsg("Cante primeiro alguns segundos — nenhuma nota estável captada ainda.");
+      return;
+    }
+    keepLoop.current = true;
+    setPlayComp(comp);
+    setPlayhead(0);
+    setHumMsg(null);
+    setHumPhase("playing");
+    loopPlay(comp);
+  };
+
+  const stopHumFlow = () => {
+    keepLoop.current = false;
+    playerRef.current?.stop();
+    unmuteConductorBand();
+    setHumPhase("idle");
+    setPlayhead(0);
+  };
+
+  const saveHumSong = async () => {
+    if (!playComp) return;
+    try {
+      await saveComposition({ ...playComp, updatedAt: new Date().toISOString() });
+      await recorder.refreshList();
+      setHumMsg(`Música salva ("${playComp.name}", ${playComp.melody.length} notas). Abra em PROJETOS.`);
+    } catch {
+      setHumMsg("Não foi possível salvar no IndexedDB.");
+    }
+  };
 
   // Return focus to the opener when the help dialog closes (§44).
   useEffect(() => {
@@ -234,6 +338,56 @@ function SessionBody() {
         </p>
       </section>
 
+      <section className="panel" aria-label="Cantarolar primeiro">
+        <h2>CANTAROLAR PRIMEIRO (SEM TRAVA)</h2>
+        <p className="hint">
+          1. CANTAROLAR com a banda muda → 2. TOCAR A BANDA em loop → cante junto.
+          A banda toca a música fixa; o mic só acompanha (sem reagir e sem eco).
+          De preferência, use fone.
+        </p>
+        <div className="controls">
+          {humPhase === "idle" && (
+            <button className="primary" onClick={startHum} data-testid="hum-start">
+              <MicIcon size={14} /> 1. CANTAROLAR (BANDA MUDA)
+            </button>
+          )}
+          {humPhase === "humming" && (
+            <>
+              <button className="primary" onClick={stopHumAndPlay} data-testid="hum-play">
+                <PlayIcon size={14} /> 2. TOCAR A BANDA ({cond.noteCount} NOTAS)
+              </button>
+              <button className="ghost stop" onClick={stopHumFlow} data-testid="hum-cancel">
+                <StopIcon size={14} /> CANCELAR
+              </button>
+            </>
+          )}
+          {humPhase === "playing" && (
+            <>
+              <button className="primary stop" onClick={stopHumFlow} data-testid="hum-stop">
+                <StopIcon size={14} /> PARAR BANDA
+              </button>
+              <button className="ghost" onClick={saveHumSong} data-testid="hum-save">
+                <PencilIcon size={14} /> SALVAR MÚSICA
+              </button>
+            </>
+          )}
+        </div>
+        <p className="meta" aria-live="polite" data-testid="hum-status">
+          {humPhase === "humming" &&
+            (running
+              ? `Ouvindo só você… ${cond.noteCount} notas captadas. Capriche e aperte TOCAR A BANDA.`
+              : "Abrindo o microfone…")}
+          {humPhase === "playing" &&
+            `Tocando em loop (${playhead.toFixed(1)}s) — cante junto. Mic segue aberto só p/ acompanhar.`}
+          {humPhase === "idle" && "Parado."}
+        </p>
+        {humMsg && (
+          <p className="meta" role="status" data-testid="hum-msg">
+            {humMsg}
+          </p>
+        )}
+      </section>
+
       <VocalCoachPanel
         observation={mic.current}
         keyEstimate={cond.key}
@@ -285,7 +439,7 @@ function SessionBody() {
 
           {recorder.lastComposition && (
             <Link
-              href={`/compose/${recorder.lastComposition.id}`}
+              href={`/compose/editor?id=${recorder.lastComposition.id}`}
               className="primary"
               data-testid="link-open-editor"
               style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
@@ -396,6 +550,10 @@ function SessionBody() {
       )}
 
       {helpOpen && <HelpDialog scope="session" onClose={() => setHelpOpen(false)} />}
+
+      <section className="panel" aria-label="Atualização do aplicativo">
+        <TauriUpdateButton />
+      </section>
 
       <footer className="creed">
         You sing the song. LookaMusic builds the band.
