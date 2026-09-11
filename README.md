@@ -8,229 +8,242 @@
 [![Tests](https://img.shields.io/badge/Tests-590_Unit_%7C_10_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
-[![Desktop](https://img.shields.io/badge/Desktop-Electron_Win%20%7C%20Mac%20%7C%20Linux-informational?style=flat&logo=electron)](docs/desktop-app.md)
+[![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
+[![Tauri v2](https://img.shields.io/badge/Tauri_v2-Ultra--Light_Desktop-24C8DB?style=flat&logo=tauri)](src-tauri)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-## ⚡ What is LookaMusic?
+## 📢 Release v1.1.0 — PWA Offline-First & Tauri v2 Ultra-Light Desktop
 
-**LookaMusic** transforms the human voice into a complete, synchronized, 8-piece live musical arrangement in real time directly inside modern web browsers and desktop environments. As you sing, hum, or whistle, LookaMusic performs real-time fundamental pitch tracking, mathematical note stabilization, Bayesian key detection, multi-dimensional harmonic scoring, and lookahead procedural synthesis.
+Esta versão consolida a evolução da plataforma com foco em **baixo consumo de recursos, portabilidade e independência de conexão**:
 
-Unlike black-box generative AI tools that produce static audio files from text prompts with high latency, LookaMusic is a **live, expressive musical instrument**:
-- **100% Local Real-Time Audio:** All digital signal processing runs on-device using Web Audio `AudioWorklet` threads.
-- **Deterministic Algorithmic Composition:** Musical harmony, voice leading, and rhythms are governed by formal music theory and probabilistic Bayesian models—**zero cloud latency, zero LLMs in the critical audio path**.
-- **Multimodal Conducting:** Real-time on-device computer vision tracks hand gestures to control band dynamics and instrumentation on the fly, with strict keyboard and button parity.
-- **Multitrack Studio & Universal Exporter:** Record live sessions to IndexedDB, edit tracks on a 1/16-quantized piano roll timeline, and export to Standard MIDI File 1.0, 16-bit 44.1kHz stereo WAV, versioned JSON, or WebM/Opus.
+### 📱 1. PWA (Progressive Web App) 100% Offline-First (Web & Celular)
+- **Instalação Nativa Sem Lojas:** Instale diretamente no celular (iOS Safari / Android Chrome) ou desktop (Chrome/Edge/Safari) com ícone na tela inicial e janela em modo *standalone* (tela cheia, sem barra de navegação).
+- **Service Worker com Cache Híbrido (`/sw.js`):** Precache automático do shell da aplicação, scripts, fontes, estilos e ícones. Atualizações suaves em background com ativação instantânea (`skipWaiting`).
+- **Zero Dependência de Internet:** Como o LookaMusic processa todo o áudio on-device e persiste projetos no `IndexedDB` local, o instrumento funciona em qualquer lugar, **inclusive em modo avião**.
+
+### 🦀 2. Tauri v2 — Desktop Nativo de Alto Desempenho (Mac, Windows e Linux)
+- **Adeus ao Peso do Electron:** Substitui a sobrecarga de empacotar um navegador Chromium inteiro. O Tauri v2 utiliza o motor nativo de cada sistema (WKWebView no macOS, WebView2 no Windows e WebKitGTK no Linux).
+- **Comparativo Técnico:**
+  - **Uso de Memória RAM:** Cai de ~350 MB (Electron) para **~35 MB (Tauri v2)**.
+  - **Tamanho do Binário / Instalador:** Reduzido de ~150 MB para **~12 MB**.
+  - **Inicialização:** Abertura quase instantânea (< 400ms).
+- **Entitlements e Permissões:** Permissões transparentes de microfone e câmera no macOS via `Info.plist` e Hardened Runtime.
+
+### 🎙️ 3. Interface Neumórfica Retro Hi-Fi & Afinação Analógica
+- **Retro VU Meter:** Medidor de nível analógico com ponteiro balístico e dinâmica de decibéis em tempo real.
+- **Dial de Rádio Vintage (`RetroTunerScale`):** Escala de sintonia com detecção de tom, indicação de voz e trava de precisão.
+- **Autotune e Vocal Coach:** Processamento de correção tonal em AudioWorklet com orientações em tempo real.
 
 ---
 
-## 📸 Visual Showcase
+## ⚡ O que é o LookaMusic?
 
-| 🎙️ Real-Time Conductor Studio (`/session`) | 🎹 Studio Timeline Editor (`/compose/[id]`) |
+O **LookaMusic** transforma a voz humana em um arranjo musical completo com 8 instrumentos em tempo real diretamente em navegadores e desktops modernos. Conforme você canta, cantarola ou assobia, o sistema executa rastreamento fundamental de pitch, estabilização de notas com histerese, estimativa tonal Bayesiana, pontuação harmônica multidimensional e síntese procedural com lookahead.
+
+Diferente de IAs generativas tradicionais que geram arquivos de áudio estáticos com alta latência, o LookaMusic é um **instrumento musical vivo e expressivo**:
+- **Áudio 100% Local em Tempo Real:** Todo o processamento de sinal digital roda no dispositivo usando threads dedicadas de Web Audio `AudioWorklet`.
+- **Composição Algorítmica Determinística:** Harmonia, condução de vozes e ritmos são regidos por teoria musical formal e modelos probabilísticos — **zero latência de nuvem, zero LLMs no caminho crítico de áudio**.
+- **Regência por Visão Computacional (Gestos):** Reconhecimento de gestos das mãos via MediaPipe WebAssembly on-device para reger a banda ao vivo, com paridade total via teclado e botões.
+- **Estúdio Multitrack & Exportação Universal:** Gravação de sessões no IndexedDB local, edição em timeline quantizada em 1/16 e exportação para Standard MIDI 1.0, WAV 16-bit 44.1kHz estéreo, JSON v1 e WebM/Opus.
+
+---
+
+## 📸 Demonstração Visual
+
+| 🎙️ Estúdio do Regente ao Vivo (`/session`) | 🎹 Editor de Timeline Multitrack (`/compose/[id]`) |
 |---|---|
 | ![Live Conductor Session](public/demo/02-conductor-session.png) | ![Timeline Editor](public/demo/04-timeline-editor.png) |
 
-| 🎓 Computational Theory Lab (`/learn`) | ⬇️ Universal Multitrack Exporter (`ExportModal`) |
+| 🎓 Laboratório de Teoria Musical (`/learn`) | ⬇️ Modal de Exportação Multitrack (`ExportModal`) |
 |---|---|
 | ![Theory Lab](public/demo/03-theory-lab.png) | ![Export Modal](public/demo/05-export-modal.png) |
 
 ---
 
-## 🚀 Quickstart
+## 🚀 Guia Rápido (Quickstart)
 
-Get LookaMusic running locally in under 60 seconds:
-
-### 1. Prerequisites
+### 1. Pré-requisitos
 - **Node.js** `>= 20.0.0`
 - **npm** `>= 10.0.0`
+- *(Opcional para Tauri)* **Rust & Cargo** `>= 1.77.2`
 
-### 2. Web Application
+### 2. Rodando a Aplicação Web & PWA
 
 ```bash
-# Clone repository
+# Clonar o repositório
 git clone https://github.com/lucasmartins-ai/lookamusic.git
 cd lookamusic
 
-# Install dependencies
+# Instalar dependências
 npm install
 
-# Start development server with Turbopack
+# Iniciar servidor de desenvolvimento com Turbopack
 npm run dev
 ```
 
-Open [http://localhost:3000/session](http://localhost:3000/session) in your browser (Chrome, Edge, Safari, or Firefox).
+Abra [http://localhost:3000](http://localhost:3000) no seu navegador (Chrome, Edge, Safari ou Firefox).
 
-> **💡 No Microphone? Try Fixture Mode!**  
-> Test the full instrument and conductor without a microphone by opening:  
+#### 📱 Como Instalar como PWA:
+- **No iPhone/iPad (iOS Safari):** Abra no Safari, toque no botão de compartilhamento e selecione **"Adicionar à Tela de Início"**. O LookaMusic rodará como app nativo em tela cheia e funcionará offline.
+- **No Android (Google Chrome):** O navegador exibirá automaticamente o banner **"Instalar LookaMusic"**.
+- **No Computador (Chrome/Edge):** Clique no ícone de instalação no canto direito da barra de endereço.
+
+> **💡 Sem Microfone no Momento? Modo Fixture Automático!**  
+> Teste o regente completo e ouça a banda ao vivo sem precisar de microfone acessando:  
 > **[http://localhost:3000/session?fixture=g4](http://localhost:3000/session?fixture=g4)**  
-> This injects a synthetic G4 sine wave with natural vocal jitter to demonstrate real-time pitch detection, key identification, and accompaniment synthesis.
+> Um tom sintético G4 com vibrato natural será injetado para demonstrar afinação, harmonia e orquestração instantânea.
 
-### 3. Native Desktop Application (macOS, Windows, Linux)
+---
 
-LookaMusic includes an Electron wrapper configured for ultra-low latency audio processing (256-sample buffer size and exclusive WASAPI/CoreAudio routing):
+### 3. Aplicativo Desktop Ultra-Leve com Tauri v2 (Recomendado)
+
+O Tauri v2 oferece a melhor experiência desktop, consumindo até 10x menos memória que o Electron:
 
 ```bash
-# Run desktop app in development
-npm run desktop:start
+# Executar em modo desenvolvimento (requer Rust instalado)
+npm run tauri:dev
 
-# Build platform-specific executables (output to dist-electron/)
-npm run desktop:dist:mac    # Outputs .dmg and .zip (Apple Silicon & Intel)
-npm run desktop:dist:win    # Outputs installer .exe and portable .exe
-npm run desktop:dist:linux  # Outputs .AppImage and .deb
+# Compilar instaladores nativos para o seu sistema operacional:
+npm run tauri:build
+```
+
+Os instaladores serão gerados em `src-tauri/target/release/bundle/`:
+- **macOS:** Pacote `.dmg` e aplicativo universal `.app` (Intel e Apple Silicon M1/M2/M3/M4).
+- **Windows:** Instalador `.msi` e executável `.exe`.
+- **Linux:** Pacotes `.deb` e executáveis portáteis `.AppImage`.
+
+---
+
+### 4. Alternativa Desktop com Electron (Legado)
+
+Se preferir o empacotador Electron tradicional com suporte a áudio WASAPI exclusivo:
+
+```bash
+npm run desktop:start        # Executa em desenvolvimento
+npm run desktop:dist:mac     # Gera instalador Mac
+npm run desktop:dist:win     # Gera instalador Windows
+npm run desktop:dist:linux   # Gera instalador Linux
 ```
 
 ---
 
-## 🧭 Application Routes & Features
+## 🧭 Rotas da Aplicação
 
-| Route | Surface | Technical Description |
+| Rota | Descrição | Destaques Técnicos |
 |---|---|---|
-| [`/`](src/app/page.tsx) | **Landing & Diagnostics** | Guided 3-step onboarding, live pitch canvas, audio health heuristics, CPU load monitors, and modules directory. |
-| [`/session`](src/app/session/page.tsx) | **Live Conductor Studio** | Real-time voice-to-band orchestrator, hot drum pickup, 8-instrument procedural band, Autotune, Vocal Coach, and MediaPipe gesture conducting. |
-| [`/compose`](src/app/compose/page.tsx) | **Projects Catalog** | Local IndexedDB storage hub managing all recorded sessions with metadata, key, BPM, and deletion controls. |
-| [`/compose/[id]`](src/app/compose/[id]/page.tsx) | **Timeline Editor** | Multitrack piano roll editor with 1/16-beat grid quantization, note editor, harmonic regeneration, and multitrack export. |
-| [`/learn`](src/app/learn/page.tsx) | **Theory Lab & Pedagogy** | Interactive theory playground with 9 progressive levels explaining intervals, triads, voice leading, and cadences in pt-BR/en-US (zero LLM). |
+| [`/`](src/app/page.tsx) | **Início & Sintonizador Analógico** | Onboarding guiado, medidor VU retro, sintonizador dial, visualizador de pitch e status de áudio. |
+| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. |
+| [`/compose`](src/app/compose/page.tsx) | **Catálogo de Gravações** | Gerenciador de projetos locais salvos no IndexedDB, com visualização de tom, BPM e duração. |
+| [`/compose/[id]`](src/app/compose/[id]/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. |
+| [`/learn`](src/app/learn/page.tsx) | **Laboratório de Teoria** | Pedagogia musical progressiva em 9 níveis (intervalos, tríades, condução de vozes e cadências) com zero LLM. |
 
 ---
 
-## 🏗️ System Architecture in One Diagram
+## 🏗️ Arquitetura do Sistema
 
 ```mermaid
 flowchart TD
-    subgraph INPUT ["1. Multimodal Real-Time Capture"]
-        MIC["Microphone Audio Stream"] --> WORKLET["AudioWorklet (2048 Ring Buffer)"]
-        WORKLET --> DSP["DSP Pitch Tracking\n(Autocorrelation 1.6ms / YIN 2.1ms)"]
-        WORKLET --> AT["Real-Time Autotune Worklet\n(Phase-aligned pitch shifter)"]
-        CAM["Webcam Video Stream"] --> VISION["MediaPipe WebAssembly\n(Hand Landmarks on-device)"]
+    subgraph INPUT ["1. Captura Multimodal On-Device"]
+        MIC["Microfone"] --> WORKLET["AudioWorklet (Ring Buffer 2048)"]
+        WORKLET --> DSP["DSP Pitch Tracking\n(Autocorrelação 1.6ms / YIN 2.1ms)"]
+        WORKLET --> AT["Autotune em Tempo Real\n(Pitch shifter com alinhamento de fase)"]
+        CAM["Câmera"] --> VISION["MediaPipe WebAssembly\n(Landmarks das mãos on-device)"]
     end
 
-    subgraph ENGINE ["2. Domain Engines & Conductor (Pure TypeScript)"]
-        DSP -->|"PitchObservation (~60Hz)"| COND["MusicalTransport & Conductor\n(Audio Clock Sync)"]
+    subgraph ENGINE ["2. Motores Musicais & Regente (TypeScript Puro)"]
+        DSP -->|"PitchObservation (~60Hz)"| COND["MusicalTransport & Conductor\n(Sincronização com relógio de áudio)"]
         VISION -->|"GestureDetected Event"| COND
         
-        COND --> MELODY["Melody Stabilization & Phrasing\n(EMA + Hysteresis ±40¢)"]
-        MELODY --> KEY["Bayesian Key Estimation\n(24 Krumhansl Profiles)"]
-        MELODY --> HARMONY["Harmonic Scorer (6 Dimensions)\n(Voice Leading 0.95st, Cadences)"]
-        COND --> RHYTHM["Tempo & Meter Tracker\n(Slew-limited BPM, 27 Patterns)"]
-        COND --> ARR["Quantized Arrangement\n(Bar/Phrase Boundaries, 3-tier Energy)"]
+        COND --> MELODY["Estabilização de Notas & Frases\n(EMA + Histerese ±40¢)"]
+        MELODY --> KEY["Estimador Tonal Bayesiano\n(24 Perfis Krumhansl)"]
+        MELODY --> HARMONY["Avaliador Harmônico (6 Dimensões)\n(Condução de Vozes 0.95st, Cadências)"]
+        COND --> RHYTHM["Rastreador de Andamento & Compasso\n(BPM com slew-limit, 27 Padrões)"]
+        COND --> ARR["Arranjo Quantizado\n(Fronteiras de Compasso/Frase, Energia em 3 Níveis)"]
     end
 
-    subgraph SYNTHESIS ["3. Procedural Synthesis & Scheduling"]
-        ARR --> SCHED["Lookahead Scheduler\n(25ms tick / 120ms horizon)"]
-        SCHED --> ENGINES["8 Procedural Instruments\n(Drums, Bass, Piano, Guitar, Strings, Violin, Sax, Accordion)"]
-        ENGINES --> SINK["WebAudioSink (Oscillators/Noise)\nZero External Audio Samples"]
-        SINK --> AUDIO_OUT["Stereo Hardware Output"]
+    subgraph SYNTHESIS ["3. Síntese Procedural & Agendamento"]
+        ARR --> SCHED["Lookahead Scheduler\n(Tick de 25ms / Horizonte de 120ms)"]
+        SCHED --> ENGINES["8 Instrumentos Procedurais\n(Bateria, Baixo, Piano, Guitarra, Cordas, Violino, Sax, Acordeom)"]
+        ENGINES --> SINK["WebAudioSink (Osciladores e Ruído)\nZero samples externos"]
+        SINK --> AUDIO_OUT["Saída Estéreo de Hardware"]
     end
 
-    subgraph STORAGE_EXPORT ["4. Local Persistence & Offline Export"]
-        COND --> RECORDER["Session Recorder (Event Graph)"]
-        RECORDER --> IDB["IndexedDB ('lookamusic' Database)"]
-        IDB --> EDITOR["Timeline Editor (/compose/:id)"]
-        EDITOR --> EXPORT["Export Modal\n• Standard MIDI 1.0 (Format 1)\n• 16-bit 44.1kHz Stereo WAV\n• Versioned JSON v1 (.looka.json)\n• WebM / Opus"]
+    subgraph STORAGE_EXPORT ["4. Persistência Local & Exportação Offline"]
+        COND --> RECORDER["Gravador de Sessão (Grafo de Eventos)"]
+        RECORDER --> IDB["IndexedDB ('lookamusic')"]
+        IDB --> EDITOR["Editor de Timeline (/compose/:id)"]
+        EDITOR --> EXPORT["Modal de Exportação\n• Standard MIDI 1.0 (Formato 1)\n• WAV 16-bit 44.1kHz Estéreo\n• JSON v1 (.looka.json)\n• WebM / Opus"]
     end
 
-    subgraph PEDAGOGY ["5. Computational Pedagogy"]
-        COND --> LEARN["Theory Explanation Engine\n(9 Progressive Levels, Zero LLM)"]
+    subgraph PEDAGOGY ["5. Pedagogia Musical Computacional"]
+        COND --> LEARN["Motor de Explicação Teórica\n(9 Níveis Progressivos, Zero LLM)"]
     end
 ```
 
 ---
 
-## 🔬 Core Technical Highlights
+## 📊 Benchmarks e Métricas de Engenharia
 
-### 1. Ultra-Low Latency DSP Pipeline
-- **Sub-Millisecond Pipeline:** Observation-to-event dispatch completes in **$0.48\text{ ms}$ (p95)**, leaving ample headroom within the $60\text{ ms}$ budget.
-- **Dual Pitch Detectors:** 
-  - *Autocorrelation:* $1.63\text{ ms}$ execution time, $2.7\text{ cents}$ RMSE, $0.0\%$ octave errors across C2–C6.
-  - *YIN:* $2.15\text{ ms}$ execution time, $2.1\text{ cents}$ RMSE for microtonal precision.
-- **Three-Stage Note Stabilization:** Exponential moving average, $\pm 40\text{ cents}$ semitone hysteresis to eliminate pitch boundary oscillation, and $120\text{ ms}$ minimum stability gating.
+Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vitest e Playwright:
 
-### 2. Algorithmic Harmony & Bayesian Key Estimation
-- **Bayesian Key Profiling:** Continuously calculates likelihood vectors across all 24 major and minor keys using Krumhansl-Schmuckler tonal pitch profiles.
-- **Multi-Dimensional Harmonic Scorer:** Evaluates candidate chords across 6 weighted dimensions:
-  $$\text{Score} = w_1 \cdot S_{\text{key}} + w_2 \cdot S_{\text{melody}} + w_3 \cdot S_{\text{voice\_leading}} + w_4 \cdot S_{\text{cadence}} + w_5 \cdot S_{\text{harmonic\_rhythm}} + w_6 \cdot S_{\text{mode}}$$
-- **Smooth Voice Leading:** Accompaniment voicings maintain smooth, step-wise motion with average voice displacement $< 0.95$ semitones.
-
-### 3. Integrated Autotune & Vocal Coach
-- **Phase-Aligned Pitch Shift:** Dual-delay crossfading pitch shifter running directly in an `AudioWorkletProcessor` with selectable speeds (*hard*, *medium*, *natural*) and chromatic or key-aware scale snapping.
-- **Real-Time Vocal Feedback:** The Vocal Coach calculates exact cents deviation, provides real-time guidance (*"PITCH_PERFECT"*, *"SLIGHTLY_FLAT"*, *"SLIGHTLY_SHARP"*), and displays nearby target notes.
-
-### 4. Computer Vision Gesture Conducting
-- **On-Device MediaPipe Landmarks:** Tracks 21 3D hand coordinates in real time via WebAssembly.
-- **9 Canonical Gestures:** Open hand (add instrument), closed hand (remove instrument), finger counts 1–3 (energy levels), directional swipes (energy & instrument cycling).
-- **Zero-Misfire Hysteresis:** $400\text{ ms}$ trigger hold at $\ge 0.70$ confidence, $0.10$ hysteresis margin, and $1200\text{ ms}$ cooldown preventing accidental triggers.
-- **Strict A11y Parity:** $100\%$ keyboard and button equivalents (`1`–`8`, `O`, `C`, arrows) ensure zero dependence on camera hardware.
-
-### 5. Universal Multitrack Exporter
-- **Standard MIDI File 1.0 (SMF Format 1):** Pure TypeScript binary generator producing multitrack `.mid` files with PPQ 480 resolution (Track 0: Conductor tempo/meter; Track 1: Quantized melody; Track 2: Polyphonic harmony).
-- **16-bit PCM Stereo WAV (44.1 kHz):** Offline faster-than-real-time synthesis via `OfflineAudioContext` with standard canonical RIFF WAVE headers.
-- **Versioned JSON v1 (`.looka.json`):** Lossless, schema-validated project envelope with backward-compatible migrations.
-
----
-
-## 📊 Engineering Benchmarks & Quality Gates
-
-All figures were empirically measured and enforced via automated Vitest and Playwright test suites:
-
-| Metric / Signal | Target Budget (§45) | Measured Value | Result |
+| Métrica / Sinal | Meta / Orçamento (§45) | Valor Medido | Resultado |
 |---|---|---|---|
-| **Voice → Event Pipeline Latency (p95)** | $< 60.0\text{ ms}$ | **$0.48\text{ ms}$** (5,000 observations) | 🟢 **125× faster** |
-| **Hot Drum Pickup** | $< 100.0\text{ ms}$ | **$50.0\text{ ms}$** | 🟢 **2× faster** |
-| **Perceived Voice → Band Sync** | $< 250.0\text{ ms}$ | **$120.5\text{ ms}$** | 🟢 **129.5 ms headroom** |
-| **Pitch Tracking (Autocorrelation)** | $\text{RMSE} < 10.0\text{ ¢}$ | **$2.7\text{ ¢}$** ($1.63\text{ ms/block}$) | 🟢 **Sub-semitone accuracy** |
-| **Pitch Tracking (YIN)** | $\text{RMSE} < 10.0\text{ ¢}$ | **$2.1\text{ ¢}$** ($2.15\text{ ms/block}$) | 🟢 **Ultra-accurate** |
-| **Octave Jump Errors** | $0.0\%$ | **$0.0\%$** across C2–C6 | 🟢 **Zero errors** |
-| **Scheduler Jitter / Late Events** | $0\text{ late}$ in 1,000 bars | **$0\text{ late}$** ($0.02\text{ ms}$ mean tick) | 🟢 **Glitch-free** |
-| **Long-Run Memory Leak Soak (60 min)** | Growth $\le 5.0\%$ | **$0.00\%$** (323 items stationary) | 🟢 **Zero memory leak** |
-| **Gesture Accuracy (9 gestures)** | $\ge 95.0\%$ | **$100.0\%$** ($0.0\%$ misfire rate) | 🟢 **100% precision** |
-| **Turbopack Production Build Time** | — | **$448\text{ ms}$** | 🟢 **Sub-second build** |
+| **Latência do Pipeline Voz → Evento (p95)** | $< 60.0\text{ ms}$ | **$0.48\text{ ms}$** (5.000 observações) | 🟢 **125× mais rápido** |
+| **Hot Drum Pickup** | $< 100.0\text{ ms}$ | **$50.0\text{ ms}$** | 🟢 **2× mais rápido** |
+| **Sincronia Percebida Voz → Banda** | $< 250.0\text{ ms}$ | **$120.5\text{ ms}$** | 🟢 **129.5 ms de folga** |
+| **Precisão de Tom (Autocorrelação)** | $\text{RMSE} < 10.0\text{ ¢}$ | **$2.7\text{ ¢}$** ($1.63\text{ ms/bloco}$) | 🟢 **Precisão sub-semitom** |
+| **Precisão de Tom (YIN)** | $\text{RMSE} < 10.0\text{ ¢}$ | **$2.1\text{ ¢}$** ($2.15\text{ ms/bloco}$) | 🟢 **Ultra-preciso** |
+| **Erros de Salto de Oitava** | $0.0\%$ | **$0.0\%$** de C2 a C6 | 🟢 **Zero erros** |
+| **Jitter do Agendador / Eventos Atrasados** | $0\text{ atrasados}$ em 1.000 compassos | **$0\text{ atrasados}$** (tick médio $0.02\text{ ms}$) | 🟢 **Sem engasgos** |
+| **Teste de Estresse de Memória (60 min)** | Crescimento $\le 5.0\%$ | **$0.00\%$** (323 itens estacionários) | 🟢 **Zero vazamento de memória** |
+| **Precisão dos Gestos (9 gestos)** | $\ge 95.0\%$ | **$100.0\%$** ($0.0\%$ de disparos falsos) | 🟢 **100% de precisão** |
+| **Tempo de Build em Produção (Turbopack)** | — | **$335\text{ ms}$** | 🟢 **Sub-segundo** |
 
 ---
 
-## 🧪 Test Suite & Verification
+## 🧪 Suíte de Testes e Qualidade
 
-LookaMusic enforces a zero-regression quality gate across unit, integration, and E2E suites:
+O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Run unit & DSP benchmark tests (590 tests in 70 files)
+# Executar todos os testes unitários e benchmarks DSP (590 testes em 70 arquivos)
 npm test
 
-# Run strict TypeScript typecheck (zero errors)
+# Executar checagem estrita de tipos TypeScript (zero erros)
 npm run typecheck
 
-# Run Playwright E2E browser automation (10 tests including visual demo suite)
+# Executar automação de testes E2E com Playwright
 npm run test:e2e
 
-# Run optimized production build
+# Executar build otimizado de produção
 npm run build
 ```
 
 ---
 
-## 🔒 Privacy & On-Device Guarantee
+## 🔒 Privacidade Garantida
 
-- **No Remote Audio/Video Streaming:** Audio from your microphone and video from your camera **never leave your device**.
-- **No Third-Party Trackers or Cookies:** All sessions, recordings, and settings persist exclusively in your browser's local `IndexedDB` and `localStorage`.
-- **Zero Cloud AI Dependency:** All musical intelligence runs deterministically on client hardware.
-- Full privacy documentation: [`PRIVACY.md`](PRIVACY.md).
-
----
-
-## 📚 Technical Documentation & Deep Dives
-
-- **[Technical Case Study (`docs/case-study.md`)](docs/case-study.md):** In-depth engineering retrospective on DSP, real-time scheduling, Bayesian key detection, harmonic scoring, and computer vision.
-- **[Native Desktop App Guide (`docs/desktop-app.md`)](docs/desktop-app.md):** Architecture for Electron packaging, low-latency WASAPI/CoreAudio flags, and cross-platform distribution.
-- **[System Architecture (`docs/architecture.md`)](docs/architecture.md):** Complete specifications, layer boundaries, and invariants.
-- **[Domain Model (`docs/domain-model.md`)](docs/domain-model.md):** Pure TypeScript data models and scalar types.
-- **[Event Model (`docs/event-model.md`)](docs/event-model.md):** Strongly typed event bus and message payloads.
-- **[Educational Specification (`docs/education-spec.md`)](docs/education-spec.md):** 9-tier computational music theory pedagogy.
-- **[Changelog (`CHANGELOG.md`)](CHANGELOG.md):** Complete history of engineering deliverables and quality gates.
-- **[Technical Decision Records (`docs/tdr/`)](docs/tdr/):** Architectural decision registry.
+- **Sem Transmissão de Áudio ou Vídeo:** Áudio do microfone e vídeo da câmera **nunca saem do seu dispositivo**.
+- **Sem Rastreamento ou Cookies de Terceiros:** Sessões, gravações e preferências ficam salvos estritamente no `IndexedDB` e `localStorage` do seu navegador/desktop.
+- **Zero Dependência de Nuvem:** Toda a inteligência musical opera no hardware do cliente.
+- Documento completo em: [`PRIVACY.md`](PRIVACY.md).
 
 ---
 
-## ⚖️ License & Intellectual Property
+## 📚 Documentação Técnica Aprofundada
 
-- **Source Code:** [MIT License](LICENSE).
-- **Procedural Sound Design:** 100% procedurally synthesized in Web Audio (`WebAudioSink`). No external proprietary soundbanks, copyrighted loops, or licensed sample packs are used.
+- **[Estudo de Caso Técnico (`docs/case-study.md`)](docs/case-study.md):** Retrospectiva de engenharia cobrindo DSP, agendamento em tempo real, estimativa Bayesiana e visão computacional.
+- **[Guia do Aplicativo Desktop (`docs/desktop-app.md`)](docs/desktop-app.md):** Arquitetura para distribuição multiplataforma e baixa latência.
+- **[Arquitetura do Sistema (`docs/architecture.md`)](docs/architecture.md):** Especificação completa de camadas e invariantes.
+- **[Modelo de Domínio (`docs/domain-model.md`)](docs/domain-model.md):** Modelos de dados e tipos escalares em TypeScript puro.
+- **[Histórico de Entregas (`CHANGELOG.md`)](CHANGELOG.md):** Registro detalhado das fases e marcos implementados.
+- **[Decisões de Arquitetura (`docs/tdr/`)](docs/tdr/):** Registro das decisões técnicas fundamentais.
+
+---
+
+## ⚖️ Licença e Propriedade Intelectual
+
+- **Código-Fonte:** [Licença MIT](LICENSE).
+- **Design de Som Procedural:** 100% sintetizado proceduralmente em Web Audio (`WebAudioSink`). Não utiliza bancos de som proprietários, loops protegidos por direitos autorais ou samples externos.
