@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+dist/
+dist-electron/
+test-results/
+playwright-report/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+

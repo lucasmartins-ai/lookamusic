@@ -1,0 +1,36 @@
+{
+  "name": "lookamusic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LookaMusic — browser-based real-time voice-to-band instrument. You sing, LookaMusic builds the band.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "desktop:start": "electron electron/main.cjs",
+    "desktop:build": "next build && electron-builder",
+    "desktop:dist:mac": "next build && electron-builder --mac",
+    "desktop:dist:win": "next build && electron-builder --win",
+    "desktop:dist:linux": "next build && electron-builder --linux"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
