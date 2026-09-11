@@ -4,6 +4,48 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.3.1 — Cantarolar Primeiro padrão + estabilização adaptativa + samples descobríveis] — OK
+
+- **Fluxo padrão (`/session`)**: a seção **CANTAROLAR PRIMEIRO** vira a
+  primeira do palco (fluxo recomendado, sem reação da banda); o conductor
+  reativo desce para um bloco **MODO AVANÇADO** (recolhível, aberto por
+  padrão para não quebrar links/E2E) e mostra um **banner** quando o modo
+  reativo puro está de fato dirigindo a banda (“sem fone → eco/feedback e
+  notas fantasmas; use CANTAROLAR PRIMEIRO”).
+- **Estabilização (`config.note` + `stabilization.ts`)**: excursões pequenas
+  (histerese ≤ |Δ| < `strongStepSemitones` 2,0 st) passam a exigir
+  `weakConfirmMs` 120 ms — meia onda de vibrato a 5,5 Hz (~91 ms) nunca
+  confirma, mas um semitom cantado persiste e confirma; saltos
+  deliberados grandes seguem com `confirmMs` 80 ms e ±12 st com
+  `octaveConfirmMs` 200 ms. `releaseExtraMs` 120→150 ms (oclusivas).
+  **Trava adaptativa**: após `lockAfterMs` 500 ms de canto estável com
+  confiança ≥ 0,6 e clareza ≥ 0,55, a janela pequena cresce até
+  `weakConfirmMaxMs` 170 ms e o release +80 ms; qualidade baixa destrava.
+  A histerese base fica em 1,0 st de propósito (subir engoliria passos de
+  1 st — a janela de tempo resolve o vibrato sem esse efeito).
+- **Samples descobríveis**: banner não-intrusivo **uma vez** logo após o
+  mic ligar (sem pack baixado) apontando para SOM REAL, dispensável
+  (`promptStorageKey`, consent-first); painel ganha resumo “N de 3 prontos”
+  e selo **PACK NÃO BAIXADO — SYNTH** por instrumento (fallback procedural
+  segue transparente e sem clique).
+- **Diagnóstico + anti-feedback**: faixa **session-status** sempre visível
+  (nota, confiança, **TRAVADA**/livre, som real/synth por instrumento,
+  latência); `features/audio/feedback.ts` (puro, com gate de streak
+  `confirmObs`) avisa quando o input fica alto e sustentado ENQUANTO a
+  banda soa (possível acoplamento mic↔caixa).
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **666/666 verdes** (78 arquivos; 19 novos:
+    `melody-adaptive-stabilization` 6 — vibrato ±1,2 st não troca a nota,
+    passo de 1 st confirma, trava/estrava por confiança, release estendido,
+    flicker de oitava travado; `audio-feedback` 7 — limiares + streak;
+    `instruments-samples-prompt` 6 — decisão pura + persistência);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build`: **verde** (Turbopack 806 ms);
+  - E2E Playwright (specs de sessão): `conductor` 1/1, `sample-packs` 1/1,
+    `quality` 1/1, `polish` 2/3 — a falha restante (`polish.spec`, toggle
+    “d” de diagnostics na home) é **pré-existente** (rótulo é
+    “OCULTAR DIAGNÓSTICOS” na home; reproduzida no HEAD limpo).
+
 ## [Fase 16 — Instrumentos por samples] — Piano/violão/bateria reais, síntese vira fallback — OK
 
 - **TDR-16** (`docs/tdr/tdr-16-sample-instruments.md`): samples como DADO

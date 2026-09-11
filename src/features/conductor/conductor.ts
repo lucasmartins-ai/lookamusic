@@ -29,7 +29,7 @@ import type {
 import type { GestureKind } from "@/domain/types";
 import { ENERGY_ORDER, GestureSelection, gestureToIntent, isGestureKind } from "@/features/gestures/mapping";
 import { PitchSmoother } from "@/features/music/melody/smoothing";
-import { NoteStabilizer } from "@/features/music/melody/stabilization";
+import { NoteStabilizer, type StabilizationStatus } from "@/features/music/melody/stabilization";
 import { PhraseTracker } from "@/features/music/melody/phrases";
 import { TempoEstimator } from "@/features/music/rhythm/tempo";
 import { MeterTracker, barQuarters } from "@/features/music/rhythm/meter";
@@ -428,6 +428,14 @@ export class Conductor {
 
   mixerState(): MixerState {
     return JSON.parse(JSON.stringify(this.mixer)) as MixerState;
+  }
+
+  /**
+   * Phase 17: adaptive stabilization state (locked / steady run), for the
+   * session diagnostics strip. Read-only snapshot; no scheduling impact.
+   */
+  stabilizationStatus(): StabilizationStatus {
+    return this.engines.stabilizer.status();
   }
 
   schedulerStats(): { pending: number; lateTotal: number; dispatchedTotal: number } {

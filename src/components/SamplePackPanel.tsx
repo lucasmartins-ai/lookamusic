@@ -25,8 +25,15 @@ interface Props {
 }
 
 export function SamplePackPanel({ packs, online, onToggle, onDownload }: Props) {
+  const ready = packs.filter((p) => p.status === "ready").length;
   return (
     <div role="group" aria-label="Som real por samples">
+      <p className="meta" data-testid="samples-summary">
+        Som real pronto em {ready} de {packs.length} instrumentos.
+        {ready < packs.length
+          ? " Os demais tocam no sintetizador procedural (o fallback nunca falha)."
+          : " Tudo em som real."}
+      </p>
       {!online && (
         <p className="meta" role="status" data-testid="samples-offline">
           Offline — os packs baixados continuam tocando; novos downloads precisam de conexão.
@@ -40,6 +47,16 @@ export function SamplePackPanel({ packs, online, onToggle, onDownload }: Props) 
             <span className="meta" data-testid={`sample-mode-${p.instrument}`}>
               {p.useReal ? "Som real" : "Sintetizador"} · {p.license} · {mb(p.bytesEstimate)}
             </span>
+            {p.status !== "ready" && p.status !== "downloading" && (
+              <span
+                className="meta"
+                role="status"
+                data-testid={`sample-missing-${p.instrument}`}
+                title="Pack ainda não baixado — tocando o sintetizador procedural"
+              >
+                PACK NÃO BAIXADO — SYNTH
+              </span>
+            )}
             <label className="channel-slider">
               <span>{p.useReal ? "Real" : "Synth"}</span>
               <input

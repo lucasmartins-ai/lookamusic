@@ -16,8 +16,27 @@ updater plugin (signed artifacts + `latest.json` manifest).
   `/` and `/session`) checks on demand, downloads, installs and relaunches.
   Outside Tauri (browser/PWA/tests) it no-ops.
 - `.github/workflows/tauri-release.yml`: push a `v*` tag → builds all
-  platforms, signs artifacts and creates a **draft** release containing
-  `latest.json`. Review + publish the draft; apps pick it up.
+  platforms, signs artifacts and **publishes the release immediately**
+  (`releaseDraft: false`), because the updater endpoint
+  `releases/latest/download/latest.json` only serves *published* releases
+  (a draft returns 404 and the app never sees the update). Each matrix job
+  contributes its platform to `latest.json`; tauri-action merges them into
+  one manifest with `darwin-*`, `windows-x86_64*` and `linux-x86_64*`.
+
+## Ship a new version (checklist)
+
+1. Bump `version` in **all three** places so the app, the bundle and the
+   manifest agree: `package.json`, `src-tauri/tauri.conf.json`,
+   `src-tauri/Cargo.toml` (and the `app` entry in `src-tauri/Cargo.lock`).
+2. Commit the release on `main` and push it.
+3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` → the workflow
+   builds and publishes the GitHub Release with signed updater artifacts.
+4. Wait for the run to go green (`gh run list`), confirm
+   `latest.json` bumps (`gh release view vX.Y.Z`), then in the desktop app
+   press **BUSCAR ATUALIZAÇÃO** → **ATUALIZAR PARA vX.Y.Z**.
+
+> A version that is already installed never updates: the endpoint must
+> report a *higher* version, so always bump before tagging.
 
 ## Local build (this machine)
 

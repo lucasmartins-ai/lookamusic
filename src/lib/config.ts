@@ -53,8 +53,25 @@ export const config = {
      * este tempo antes de trocar o candidato (oscilação breve nunca
      * re-arma a janela; em tempo — não em frames — p/ valer em qualquer
      * taxa de observação).
+     * Fase 17: fica como o caminho RÁPIDO para saltos deliberados grandes
+     * (|Δ| ≥ `strongStepSemitones`); excursões pequenas usam
+     * `weakConfirmMs`, quase sempre vibrato.
      */
     confirmMs: 80,
+    /**
+     * Fase 17 (tolerância a vibrato): excursões pequenas — de
+     * `hysteresisSemitones` até `strongStepSemitones` — são quase sempre
+     * vibrato/ruído, não uma nota nova. Exigem esta confirmação, mais longa
+     * que um salto deliberado. Vibrato a ~5,5 Hz tem meia onda de ~90 ms,
+     * então 120 ms já absorve o balanço periódico sem engolir um semitom
+     * cantado de verdade (que persiste e confirma).
+     */
+    weakConfirmMs: 120,
+    /**
+     * Fase 17: |Δ| ≥ este valor contra a nota aberta conta como mudança
+     * deliberada e usa o `confirmMs` rápido (resposta musical preservada).
+     */
+    strongStepSemitones: 2.0,
     /**
      * Hotfix voz estável: confirmação estendida p/ salto exato de ±12 st
      * (erro clássico de oitava do detector; salto cantado de verdade
@@ -65,8 +82,33 @@ export const config = {
      * Hotfix voz estável: folga extra após `stabilityMs` antes de fechar a
      * nota em silêncio (consoantes oclusivas não cortam a nota; o
      * acompanhamento sustenta em vez de engasgar).
+     * Fase 17: subiu de 120 → 150 ms (mais tolerante a respiração ruidosa
+     * e oclusivas curtas) sem engolir o fim de nota (o teste de duração
+     * exata em `melody-stabilization` fecha com 280 ms de silêncio).
      */
-    releaseExtraMs: 120,
+    releaseExtraMs: 150,
+    /**
+     * Fase 17 (estabilização adaptativa): enquanto a voz fica afinada e
+     * confiante por `lockAfterMs`, a nota "trava" e a janela de confirmação
+     * pequena cresce até `weakConfirmMaxMs` (+ release até
+     * `releaseExtraMaxMs`). Um cantor firme deixa de picotar por vibrato;
+     * mudança deliberada de ≥ `strongStepSemitones` continua rápida.
+     * NÃO aumentamos a histerese adaptativamente: passar de 1,0 st engoliria
+     * saltos cromáticos de 1 st (aumentar a janela de tempo resolve vibrato
+     * sem esse efeito colateral).
+     */
+    adaptive: {
+      /** Canto estável (dentro da histerese + confiante) que trava a nota. */
+      lockAfterMs: 500,
+      /** Confiança mínima por frame para contar como estável. */
+      lockConfidenceMin: 0.6,
+      /** Clareza mínima por frame (proxy de energia periódica da voz). */
+      lockClarityMin: 0.55,
+      /** Teto da confirmação pequena quando travado (ms). */
+      weakConfirmMaxMs: 170,
+      /** Folga de release adicional quando travado (ms). */
+      releaseExtraMaxMs: 80,
+    },
   },
   rhythm: {
     /** Phase 5+: tempo slew limit (BPM change per second). */
@@ -230,6 +272,11 @@ export const config = {
       cacheName: "lookamusic-sample-packs",
       /** Bumped whenever a pack manifest changes incompatibly. */
       cacheVersion: 1,
+      /**
+       * Fase 17: chave p/ lembrar que o usuário já viu a sugestão de packs
+       * logo depois de ligar o microfone (banner não-intrusivo, uma vez só).
+       */
+      promptStorageKey: "lookamusic-samples-prompt-dismissed-v1",
       /** Max pitch correction applied via playbackRate (±st, else synth). */
       maxDetuneSt: 2,
       /** localStorage key for the per-instrument real/synth toggle. */
@@ -329,6 +376,20 @@ export const config = {
     /** Phase 11+: min and max allowed tempo in BPM. */
     minBpm: 30,
     maxBpm: 240,
+  },
+  /**
+   * Fase 17 (anti-feedback): aviso suave quando o microfone capta um nível
+   * alto e sustentado ENQUANTO a banda está soando — assinatura de
+   * acoplamento mic↔alto-falante ("banda dançando"). Heurística local, sem
+   * DSP extra: apenas comparar nível de entrada com limiares conservadores.
+   */
+  feedback: {
+    /** RMS de entrada que já sugere acoplamento quando há monitor de voz. */
+    inputRmsRisk: 0.35,
+    /** RMS alto mesmo sem monitor (mic muito perto da caixa/casal). */
+    inputRmsSevere: 0.6,
+    /** Frames consecutivos acima do limiar antes de avisar (evita picos). */
+    confirmObs: 3,
   },
   ux: {
     /** Phase 10+: chave de persistência do onboarding (localStorage). */

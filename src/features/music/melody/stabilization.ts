@@ -10,8 +10,14 @@
  *   persist for `stabilityMs` before it becomes a stable note. Brief
  *   excursions (vibrato edge, one-frame G#4 inside G4) never emit.
  * - Leaving the hysteresis band needs `confirmMs` of persistence
- *   (`octaveConfirmMs` for exact ±12 st jumps) before the candidate
- *   switches; unconfirmed wobble never re-arms the window.
+ *   (`octaveConfirmMs` for exact ±12 st jumps, `weakConfirmMs` for small
+ *   vibrato-prone excursions) before the candidate switches; unconfirmed
+ *   wobble never re-arms the window.
+ * - Adaptive lock (Phase 17): after `config.note.adaptive.lockAfterMs` of
+ *   steady, confident, high-clarity frames the small-excursion window
+ *   grows to `weakConfirmMaxMs` (and release to `releaseExtraMaxMs`), so a
+ *   firm singer stops flickering on vibrato. Hysteresis itself is NOT
+ *   widened — that would swallow deliberate 1-semitone steps.
  * - Silence (unvoiced) must persist for `stabilityMs + releaseExtraMs`
  *   before the open note closes, so single-frame dropouts and stop
  *   consonants don't split notes. Duration is measured
@@ -28,6 +34,16 @@ import { newId } from "@/lib/ids";
 import { config } from "@/lib/config";
 import type { Confidence, Hertz, MidiNote, NoteEvent } from "@/domain/types";
 import type { SmoothedObservation } from "./smoothing";
+
+/** Adaptively-tracked stabilization state, for diagnostics (read-only). */
+export interface StabilizationStatus {
+  /** True once steady confident singing kept the note locked long enough. */
+  locked: boolean;
+  /** How long the current steady, confident run has lasted (ms; 0 if none). */
+  steadyMs: number;
+  /** Confirmation window currently required for a small excursion (ms). */
+  weakConfirmMs: number;
+}
 
 interface OpenNote {
   id: string;
@@ -54,12 +70,22 @@ export class NoteStabilizer {
   /**
    * Hotfix voz estável: timestamp do 1º frame consecutivo além da
    * histerese (null dentro da banda). A troca de candidato exige que a
-   * excursão persista por `config.note.confirmMs` — vibrato e flicker
-   * de oitava breves nunca re-armam a janela, então a nota aberta para
-   * de picotar. Em tempo, não em frames: vale em qualquer taxa de
-   * observação (worklet ~23 Hz ou testes em 100 ms).
+   * excursão persista pela janela de confirmação — `weakConfirmMs`
+   * (Fase 17, excursão pequena/vibrato), `confirmMs` (salto deliberado
+   * grande) ou `octaveConfirmMs` (±12 st) —, então vibrato e flicker de
+   * oitava breves nunca re-armam a janela e a nota aberta para de
+   * picotar. Em tempo, não em frames: vale em qualquer taxa de observação
+   * (worklet ~23 Hz ou testes em 100 ms).
    */
   private awaySinceMs: number | null = null;
+  /**
+   * Phase 17: first timestamp of the current run of steady, confident,
+   * in-band frames. `null` while the run is broken (silence, low quality,
+   * or after the open note closes).
+   */
+  private steadySinceMs: number | null = null;
+  private steadyLatestMs = 0;
+  private lockedFlag = false;
   private open: OpenNote | null = null;
   private silenceSinceMs: number | null = null;
   private readonly completed: NoteEvent[] = [];
@@ -69,9 +95,22 @@ export class NoteStabilizer {
   reset(): void {
     this.candidateMidi = null;
     this.awaySinceMs = null;
+    this.steadySinceMs = null;
+    this.steadyLatestMs = 0;
+    this.lockedFlag = false;
     this.open = null;
     this.silenceSinceMs = null;
     this.completed.length = 0;
+  }
+
+  /** Adaptive stabilization state for the session diagnostics panel. */
+  status(): StabilizationStatus {
+    return {
+      locked: this.lockedFlag,
+      steadyMs:
+        this.steadySinceMs === null ? 0 : Math.max(0, this.steadyLatestMs - this.steadySinceMs),
+      weakConfirmMs: this.weakConfirmThresholdMs(),
+    };
   }
 
   /** Currently sounding stable note, if any (copy). */
@@ -90,6 +129,7 @@ export class NoteStabilizer {
       return;
     }
     this.silenceSinceMs = null;
+    this.trackSteady(sm);
     const m = Math.round(sm.midiNote);
 
     if (this.candidateMidi === null) {
@@ -147,13 +187,48 @@ export class NoteStabilizer {
    * erro de oitava clássico do detector — exige confirmação estendida.
    * Salto cantado de verdade persiste e confirma com atraso; flicker
    * intermitente nunca confirma e a nota se mantém.
+   * Fase 17: excursões pequenas (< `strongStepSemitones`) usam a janela
+   * longa de vibrato; saltos deliberados grandes continuam rápidos.
    */
   private confirmThresholdMs(m: MidiNote): number {
     const open = this.open?.midi;
-    if (open !== undefined && Math.abs(m - open) === 12) {
-      return config.note.octaveConfirmMs;
+    if (open !== undefined) {
+      const delta = Math.abs(m - open);
+      if (delta === 12) return config.note.octaveConfirmMs;
+      if (delta < config.note.strongStepSemitones) return this.weakConfirmThresholdMs();
     }
     return config.note.confirmMs;
+  }
+
+  /** Small-excursion window: base, or the adaptive ceiling while locked. */
+  private weakConfirmThresholdMs(): number {
+    return this.lockedFlag ? config.note.adaptive.weakConfirmMaxMs : config.note.weakConfirmMs;
+  }
+
+  /**
+   * Phase 17 adaptive lock. A frame counts toward the steady run when it is
+   * in-band (within hysteresis of the running candidate) and confident/
+   * clear enough. Excursions do NOT break the run — the lock earned by
+   * steady singing must keep protecting the next small excursion. Low
+   * quality (real noise) does break it. The open note's lifetime bounds the
+   * run: `closeOpen` resets it.
+   */
+  private trackSteady(sm: SmoothedObservation): void {
+    const a = config.note.adaptive;
+    if (sm.confidence < a.lockConfidenceMin || sm.clarity < a.lockClarityMin) {
+      this.steadySinceMs = null;
+      this.lockedFlag = false;
+      return;
+    }
+    const inBand =
+      this.candidateMidi !== null &&
+      Math.abs(sm.midiNote - this.candidateMidi) < config.note.hysteresisSemitones;
+    if (!inBand) return;
+    if (this.steadySinceMs === null) this.steadySinceMs = sm.timestamp;
+    this.steadyLatestMs = sm.timestamp;
+    if (!this.lockedFlag && sm.timestamp - this.steadySinceMs >= a.lockAfterMs) {
+      this.lockedFlag = true;
+    }
   }
 
   private candidateMeanConf(): Confidence {
@@ -221,11 +296,18 @@ export class NoteStabilizer {
     // A pending attack interrupted by silence never existed.
     if (!this.open) {
       this.candidateMidi = null;
+      this.steadySinceMs = null;
+      this.lockedFlag = false;
       return;
     }
     if (this.silenceSinceMs === null) this.silenceSinceMs = nowMs;
     this.open.cleanLegato = false;
-    const closeAfterMs = config.note.stabilityMs + config.note.releaseExtraMs;
+    // Locked notes get extra release slack, so a firm sustained note is not
+    // chopped by a noisy breath. The lock is preserved until the note closes.
+    const releaseExtra =
+      config.note.releaseExtraMs +
+      (this.lockedFlag ? config.note.adaptive.releaseExtraMaxMs : 0);
+    const closeAfterMs = config.note.stabilityMs + releaseExtra;
     if (nowMs - this.silenceSinceMs >= closeAfterMs) {
       this.closeOpen(this.silenceAnchorMs(this.open));
     }
@@ -256,5 +338,7 @@ export class NoteStabilizer {
     this.open = null;
     this.candidateMidi = null;
     this.silenceSinceMs = null;
+    this.steadySinceMs = null;
+    this.lockedFlag = false;
   }
 }

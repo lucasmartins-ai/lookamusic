@@ -44,6 +44,21 @@ jobs:
       - name: Install frontend deps
         run: npm ci
 
+      # Fail fast instead of publishing a release whose manifest version does
+      # not match the tag (which would silently make the app report "up to
+      # date" forever). package.json + tauri.conf.json must equal the tag.
+      - name: Verify tag matches app version
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          PKG=$(node -p "require('./package.json').version")
+          echo "tag=$TAG tauri.conf=$CONF package=$PKG"
+          if [ "v$CONF" != "$TAG" ] || [ "$PKG" != "$CONF" ]; then
+            echo "::error::Version mismatch — tag '$TAG', tauri.conf.json '$CONF', package.json '$PKG'. Bump all of them (and Cargo.toml/Cargo.lock) before tagging."
+            exit 1
+          fi
+
       - name: Build + publish draft release with updater artifacts
         uses: tauri-apps/tauri-action@v0
         env:
@@ -55,7 +70,13 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "LookaMusic ${{ github.ref_name }}"
-          releaseBody: "Auto-update build. The desktop app picks this up via BUSCAR ATUALIZAÇÃO."
+          releaseBody: |
+            LookaMusic ${{ github.ref_name }} — auto-update build (macOS / Windows / Linux).
+
+            - The desktop app updates itself: **BUSCAR ATUALIZAÇÃO** → **ATUALIZAR**. It reads the signed manifest at `releases/latest/download/latest.json`.
+            - Web/PWA: nothing to install — just reload the page.
+            - Full history: see `CHANGELOG.md` in the repository.
+            - macOS first launch without an Apple signature: right-click → Open.
           # false = publicado na hora: o endpoint releases/latest/download/latest.json
           # só serve releases PUBLICADOS (draft dá 404 e o app nunca vê update).
           releaseDraft: false

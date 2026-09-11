@@ -65,6 +65,13 @@ export interface ConductorUiSnapshot {
   stableMidi: number;
   stableConfidence: number;
   stableVoiced: boolean;
+  /**
+   * Phase 17: adaptive lock — a steady, confident run long enough to widen
+   * the vibrato confirmation window. Diagnostic readout only.
+   */
+  stableLocked: boolean;
+  /** Phase 17: length of the current steady, confident run (ms; 0 if none). */
+  stableSteadyMs: number;
 }
 
 class StubEngine implements InstrumentEngine {
@@ -143,6 +150,8 @@ export function useConductor() {
     stableMidi: -1,
     stableConfidence: 0,
     stableVoiced: false,
+    stableLocked: false,
+    stableSteadyMs: 0,
   }));
   const [mixerVersion, setMixerVersion] = useState(0);
   void mixerVersion;
@@ -159,6 +168,7 @@ export function useConductor() {
     // (duration > 0) and empty melody mean "no stable pitch right now" —
     // the dial falls back to raw mic pitch or IDLE.
     const stable = stableVoice(st.melody);
+    const stab = c.stabilizationStatus();
     setSnap((prev) => ({
       ...prev,
       tempo: st.tempo,
@@ -185,6 +195,8 @@ export function useConductor() {
       stableMidi: stable.midi,
       stableConfidence: stable.confidence,
       stableVoiced: stable.voiced,
+      stableLocked: stab.locked,
+      stableSteadyMs: stab.steadyMs,
     }));
   }, []);
 

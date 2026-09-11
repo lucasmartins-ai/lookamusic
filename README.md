@@ -5,7 +5,7 @@
 
 [![Build](https://img.shields.io/badge/Next.js-16_Turbopack-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6_Strict-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-647_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-666_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
@@ -13,6 +13,14 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
+
+## 📢 Release v1.3.1 — Cantarolar Primeiro como padrão, voz estável e samples descobríveis
+
+- **Fluxo padrão**: `CANTAROLAR PRIMEIRO` vira a primeira seção de `/session` (sem reação da banda, sem eco); o conductor reativo desce para **MODO AVANÇADO** e exibe banner quando está dirigindo a banda ao vivo.
+- **Voz estável (adaptativo)**: janela de confirmação por tipo de salto (pequeno/vibrato, salto deliberado, oitava) + **trava adaptativa** após 500 ms de canto firme; vibrato de ±1,2 st não troca mais a nota e saltos de 1 st continuam entrando.
+- **Samples descobríveis**: sugestão única pós-microfone (dispensável), resumo "N de 3 prontos" e selo `PACK NÃO BAIXADO — SYNTH`; fallback procedural segue transparente.
+- **Diagnóstico + anti-feedback**: faixa sempre visível (nota, confiança, **TRAVADA**, real/synth, latência) e aviso suave quando o input fica alto com a banda soando.
+- Atualização pela própria app: **BUSCAR ATUALIZAÇÃO** no app desktop.
 
 ## 📢 Release v1.2.0 — Cantarolar Primeiro & Desktop Auto-Atualizável
 
@@ -157,7 +165,7 @@ npm run desktop:dist:linux   # Gera instalador Linux
 | Rota | Descrição | Destaques Técnicos |
 |---|---|---|
 | [`/`](src/app/page.tsx) | **Início & Sintonizador Analógico** | Onboarding guiado, medidor VU retro, sintonizador dial, visualizador de pitch e status de áudio. |
-| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. Seção **SOM REAL (SAMPLES)**: piano/violão/bateria com som real via packs opt-in (toggle instantâneo real/sintetizador, download só com o seu toque, créditos CC-BY na tela). |
+| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Fluxo padrão **CANTAROLAR PRIMEIRO** (captura em silêncio → banda em loop, sem feedback) e o modo **AVANÇADO** reativo por trás dele, com banner de aviso; faixa de diagnóstico sempre visível (nota, confiança, trava, som real/synth, latência) e aviso suave de feedback. Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. Seção **SOM REAL (SAMPLES)**: piano/violão/bateria com som real via packs opt-in (toggle instantâneo real/sintetizador, download só com o seu toque, créditos CC-BY na tela). |
 | [`/compose`](src/app/compose/page.tsx) | **Catálogo de Gravações** | Gerenciador de projetos locais salvos no IndexedDB, com visualização de tom, BPM e duração. |
 | [`/compose/editor?id=`](src/app/compose/editor/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. (`/compose/[id]` segue na web.) |
 | [`/learn`](src/app/learn/page.tsx) | **Laboratório de Teoria** | Pedagogia musical progressiva em 9 níveis (intervalos, tríades, condução de vozes e cadências) com zero LLM. |
@@ -231,7 +239,7 @@ Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vit
 O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Executar todos os testes unitários e benchmarks DSP (647 testes em 75 arquivos)
+# Executar todos os testes unitários e benchmarks DSP (666 testes em 78 arquivos)
 npm test
 
 # Executar checagem estrita de tipos TypeScript (zero erros)

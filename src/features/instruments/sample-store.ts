@@ -145,6 +145,39 @@ export function saveUseRealPrefs(prefs: UseRealPrefs): void {
 }
 
 /**
+ * Phase 17: after the microphone is first activated, suggest the real-sound
+ * packs once (non-intrusive, dismissible, consent-first). Pure decision so
+ * the UI layer only renders `shouldSuggestSamples(...) === true`.
+ */
+export function shouldSuggestSamples(args: {
+  micActive: boolean;
+  anyPackReady: boolean;
+  dismissed: boolean;
+}): boolean {
+  return args.micActive && !args.anyPackReady && !args.dismissed;
+}
+
+/** Has the user already seen/dismissed the post-mic sample suggestion? */
+export function samplesSuggestionDismissed(): boolean {
+  try {
+    // No storage (SSR, privacy mode) → treat as dismissed and never nag.
+    if (!globalThis.localStorage) return true;
+    return globalThis.localStorage.getItem(config.instruments.samples.promptStorageKey) === "1";
+  } catch {
+    return true;
+  }
+}
+
+/** Remember that the user saw the suggestion (best-effort persistence). */
+export function dismissSamplesSuggestion(): void {
+  try {
+    globalThis.localStorage?.setItem(config.instruments.samples.promptStorageKey, "1");
+  } catch {
+    // Best-effort; the in-memory hook state still hides the banner.
+  }
+}
+
+/**
  * Live in-memory flags read per-note by `SampleVoice` (cheap, no
  * localStorage IO on the audio path). The hook keeps these + persisted
  * prefs in sync; sinks are built once and react instantly to toggles.

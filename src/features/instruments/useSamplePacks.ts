@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSampleCache, isPackReady, loadUseRealPrefs, packMetaOf, saveUseRealPrefs,
   SAMPLE_INSTRUMENTS, ensureSampleDecoder, syncSampleFlags, setSampleEnabled, defaultUseRealPrefs,
+  samplesSuggestionDismissed, dismissSamplesSuggestion, shouldSuggestSamples,
   type SampleInstrumentId, type UseRealPrefs } from "./sample-store";
 
 export type PackStatus = "idle" | "downloading" | "ready" | "error" | "offline";
@@ -50,6 +51,9 @@ export function useSamplePacks() {
   // SSR-first: identical first render on server and client (navigator
   // differs); the real online state syncs in an effect below.
   const [online, setOnline] = useState<boolean>(true);
+  // Phase 17: post-mic pack suggestion (SSR-first default = not dismissed;
+  // storage syncs in the mount effect below, like the other prefs).
+  const [suggestionDismissed, setSuggestionDismissed] = useState<boolean>(false);
 
   // Mount-only sync: stored prefs + cached-ready flags + online state.
   // (Effects never run on the server, so hydration always matches.)
@@ -58,6 +62,7 @@ export function useSamplePacks() {
     syncSampleFlags(stored);
     setPrefs(stored);
     setStates(initialStates(stored));
+    setSuggestionDismissed(samplesSuggestionDismissed());
     setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -123,5 +128,35 @@ export function useSamplePacks() {
     }
   }, []);
 
-  return { packs: SAMPLE_INSTRUMENTS.map((id) => states[id]), states, prefs, online, setUseReal, download };
+  /** True once at least one real-sound pack is fully decoded (no network). */
+  const hasReadyPack = SAMPLE_INSTRUMENTS.some((id) => isPackReady(id));
+
+  const dismissSuggestion = useCallback(() => {
+    dismissSamplesSuggestion();
+    setSuggestionDismissed(true);
+  }, []);
+
+  /**
+   * Phase 17: should the post-mic banner suggest the real-sound packs?
+   * Only while the mic is active, no pack is downloaded, and the user has
+   * not dismissed it before.
+   */
+  const suggestPackForMic = useCallback(
+    (micActive: boolean) =>
+      shouldSuggestSamples({ micActive, anyPackReady: hasReadyPack, dismissed: suggestionDismissed }),
+    [hasReadyPack, suggestionDismissed],
+  );
+
+  return {
+    packs: SAMPLE_INSTRUMENTS.map((id) => states[id]),
+    states,
+    prefs,
+    online,
+    hasReadyPack,
+    suggestionDismissed,
+    suggestPackForMic,
+    dismissSuggestion,
+    setUseReal,
+    download,
+  };
 }

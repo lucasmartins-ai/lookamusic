@@ -32,6 +32,9 @@ import { LearnPanel } from "@/components/LearnPanel";
 import { useSamplePacks } from "@/features/instruments/useSamplePacks";
 import { SamplePackPanel } from "@/components/SamplePackPanel";
 import { SampleCredits } from "@/components/SampleCredits";
+import { FeedbackWatcher, looksLikeFeedback } from "@/features/audio/feedback";
+import { SessionStatusStrip } from "@/components/SessionStatusStrip";
+import type { SampleInstrumentId } from "@/features/instruments/sample-store";
 import { VocalPitchCoach } from "@/features/pitch/coach";
 import { VocalCoachPanel } from "@/components/VocalCoachPanel";
 import { AutotunePanel } from "@/components/AutotunePanel";
@@ -53,6 +56,12 @@ import {
 import { Suspense } from "react";
 
 const KEY_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+
+const SAMPLE_LABELS: Record<SampleInstrumentId, string> = {
+  piano: "Piano",
+  violao: "Violão",
+  drums: "Bateria",
+};
 
 function keyLabel(root: number, mode: string): string {
   return `${KEY_NAMES[((Math.round(root) % 12) + 12) % 12] ?? "?"} ${mode}`;
@@ -80,6 +89,12 @@ function SessionBody() {
   // segue aberto só p/ acompanhamento visual (coach/energia), sem reagir.
   const [humPhase, setHumPhase] = useState<"idle" | "humming" | "playing">("idle");
   const [humMsg, setHumMsg] = useState<string | null>(null);
+  // Phase 17: pure-reactive mode is the advanced path; hum-first is primary.
+  // Default open so the full conductor stays available (and linkable) — the
+  // warning banner appears only while it is actually driving the band.
+  const [showReactive, setShowReactive] = useState(true);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const feedbackRef = useRef(new FeedbackWatcher());
   const [playComp, setPlayComp] = useState<Composition | null>(null);
   const [playhead, setPlayhead] = useState(0);
   const playerRef = useRef<CompositionPlayer | null>(null);
@@ -224,6 +239,36 @@ function SessionBody() {
     ? cond.chords[cond.chords.length - 1].chord
     : null;
 
+  // Phase 17: pure reactive = the conductor is driving the band with no
+  // hum-first capture loop (the mode that compounds feedback into flicker).
+  const reactivePure = running && humPhase === "idle";
+
+  // Phase 17: soft anti-feedback advisory — input hot while the band sounds.
+  useEffect(() => {
+    const d = mic.diagnostics;
+    const outputActive = running || humPhase === "playing";
+    if (!d) {
+      feedbackRef.current.reset();
+      setFeedbackMsg(null);
+      return;
+    }
+    const signals = {
+      inputRms: d.inputRms,
+      outputActive,
+      monitorVolume: mic.autotune.monitorVolume,
+    };
+    const adv = feedbackRef.current.push(signals);
+    if (adv) setFeedbackMsg(adv.message);
+    else if (!feedbackRef.current.isActive || !looksLikeFeedback(signals)) setFeedbackMsg(null);
+  }, [mic.diagnostics, mic.autotune.monitorVolume, running, humPhase]);
+
+  // Phase 17: always-visible diagnostics (no need to open the D panel).
+  const pitchConfidence = cond.stableVoiced ? cond.stableConfidence : (mic.current?.confidence ?? 0);
+  const sampleLabel = samples.packs
+    .map((p) => `${SAMPLE_LABELS[p.instrument]}: ${p.useReal && p.status === "ready" ? "real" : "synth"}`)
+    .join(" · ");
+  const showPackSuggestion = samples.suggestPackForMic(running);
+
   // Phase 10: every mic state gets a recovery card; advisories while live.
   const card = micStatusCard(mic.status, mic.error);
   const health = useMemo(() => {
@@ -308,52 +353,25 @@ function SessionBody() {
         <AudioHealthCard key={flag} flag={flag} />
       ))}
 
-      <section className="panel" aria-label="Conductor transport">
-        <h2>CONDUCTOR</h2>
-        <p data-testid="transport">
-          Bar {cond.currentBar.toFixed(2)} · {cond.noteCount} notes · {cond.dispatchedTotal} scheduled · {cond.lateTotal} late
-        </p>
-        <p data-testid="latency">
-          Voice→band p95 {cond.latencyP95.toFixed(1)} ms · perceived {cond.perceivedMs.toFixed(0)} ms{" "}
-          {cond.withinBudget ? "(within 250 ms)" : "(OVER BUDGET)"}
-        </p>
-        <div className="controls">
-          {running ? (
-            <button className="primary stop" onClick={stopSession} aria-label="Stop listening" data-testid="stop">
-              <StopIcon size={14} /> STOP
-            </button>
-          ) : (
-            <button
-              className="primary"
-              onClick={startSession}
-              disabled={mic.status === "requesting"}
-              aria-label="Start session"
-              data-testid="start"
-            >
-              <PlayIcon size={14} /> {mic.status === "requesting" ? "REQUESTING MIC…" : "START SESSION"}
-            </button>
-          )}
-          <button onClick={singFixture} aria-label="Sing synthetic fixture" data-testid="fixture">
-            <RadioIcon size={14} /> SING FIXTURE (no mic)
-          </button>
-          <button className="ghost" onClick={() => setShowDiag((v) => !v)}>
-            <DiagnosticsIcon size={14} /> {showDiag ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS (D)"}
-          </button>
-          <button ref={helpBtnRef} className="ghost" onClick={() => setHelpOpen(true)} data-testid="help-open">
-            <HelpIcon size={14} /> AJUDA (?)
-          </button>
-        </div>
-        <p className="hint">
-          Sem microfone? Use SING FIXTURE. Microfone e câmera ficam neste dispositivo
-          (ver <kbd>PRIVACY.md</kbd>). Atalhos: <kbd>D</kbd> diagnósticos · <kbd>?</kbd> ajuda.
-        </p>
-        <p className="meta" aria-live="polite" data-testid="now-singing">
-          {voiced ? `Singing ${noteName}` : "Press START + sing, or SING FIXTURE with no mic"}
-        </p>
-      </section>
+      <SessionStatusStrip
+        running={running}
+        pitchName={voiced ? noteName : "—"}
+        confidence={pitchConfidence}
+        locked={cond.stableLocked}
+        steadyMs={cond.stableSteadyMs}
+        sampleLabel={sampleLabel}
+        latencyMs={cond.perceivedMs}
+        p95Ms={cond.latencyP95}
+      />
 
-      <section className="panel" aria-label="Cantarolar primeiro">
-        <h2>CANTAROLAR PRIMEIRO (SEM TRAVA)</h2>
+      {feedbackMsg && (
+        <div className="notice tone-warning" role="status" data-testid="feedback-warning">
+          <strong>Possível feedback.</strong> {feedbackMsg}
+        </div>
+      )}
+
+      <section className="panel primary-flow" aria-label="Cantarolar primeiro (fluxo recomendado)">
+        <h2>CANTAROLAR PRIMEIRO (SEM TRAVA) · caminho recomendado</h2>
         <p className="hint">
           1. CANTAROLAR com a banda muda → 2. TOCAR A BANDA em loop → cante junto.
           A banda toca a música fixa; o mic só acompanha (sem reagir e sem eco).
@@ -401,6 +419,89 @@ function SessionBody() {
           </p>
         )}
       </section>
+
+      {showPackSuggestion && (
+        <div className="notice tone-warning" role="status" data-testid="samples-suggest">
+          <strong>Quer som de verdade?</strong> Baixe os packs de piano, violão e bateria
+          (som real, ~5 MB, ficam neste aparelho) na seção <a href="#som-real">SOM REAL</a>.
+          Sem packs, tudo continua tocando no sintetizador procedural.
+          <span className="controls">
+            <a className="ghost" href="#som-real" data-testid="samples-suggest-download">VER PACKS</a>
+            <button className="ghost" onClick={samples.dismissSuggestion} data-testid="samples-suggest-dismiss">
+              AGORA NÃO
+            </button>
+          </span>
+        </div>
+      )}
+
+      <div className="controls">
+        <button
+          className="ghost"
+          onClick={() => setShowReactive((v) => !v)}
+          aria-expanded={showReactive}
+          data-testid="toggle-advanced"
+        >
+          <RadioIcon size={14} /> {showReactive ? "▾" : "▸"} MODO AVANÇADO (BANDA REAGE EM TEMPO REAL)
+        </button>
+      </div>
+
+      {showReactive && (
+      <section className="panel" aria-label="Conductor transport">
+        {reactivePure && (
+          <div className="notice tone-warning" role="status" data-testid="reactive-banner">
+            <strong>Modo reativo puro ativo.</strong> A banda reage à sua voz em tempo real —
+            sem fone, isso pode gerar eco, feedback e notas fantasmas. Para travar a melodia,
+            use CANTAROLAR PRIMEIRO (acima).
+            <span className="controls">
+              <button className="ghost" onClick={startHum} data-testid="reactive-go-hum">
+                IR PARA CANTAROLAR PRIMEIRO
+              </button>
+            </span>
+          </div>
+        )}
+        <h2>MODO AVANÇADO — CONDUCTOR (REATIVO PURO)</h2>
+        <p data-testid="transport">
+          Bar {cond.currentBar.toFixed(2)} · {cond.noteCount} notes · {cond.dispatchedTotal} scheduled · {cond.lateTotal} late
+        </p>
+        <p data-testid="latency">
+          Voice→band p95 {cond.latencyP95.toFixed(1)} ms · perceived {cond.perceivedMs.toFixed(0)} ms{" "}
+          {cond.withinBudget ? "(within 250 ms)" : "(OVER BUDGET)"}
+        </p>
+        <div className="controls">
+          {running ? (
+            <button className="primary stop" onClick={stopSession} aria-label="Stop listening" data-testid="stop">
+              <StopIcon size={14} /> STOP
+            </button>
+          ) : (
+            <button
+              className="primary"
+              onClick={startSession}
+              disabled={mic.status === "requesting"}
+              aria-label="Start session"
+              data-testid="start"
+            >
+              <PlayIcon size={14} /> {mic.status === "requesting" ? "REQUESTING MIC…" : "START SESSION"}
+            </button>
+          )}
+          <button onClick={singFixture} aria-label="Sing synthetic fixture" data-testid="fixture">
+            <RadioIcon size={14} /> SING FIXTURE (no mic)
+          </button>
+          <button className="ghost" onClick={() => setShowDiag((v) => !v)}>
+            <DiagnosticsIcon size={14} /> {showDiag ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS (D)"}
+          </button>
+          <button ref={helpBtnRef} className="ghost" onClick={() => setHelpOpen(true)} data-testid="help-open">
+            <HelpIcon size={14} /> AJUDA (?)
+          </button>
+        </div>
+        <p className="hint">
+          Sem microfone? Use SING FIXTURE. Microfone e câmera ficam neste dispositivo
+          (ver <kbd>PRIVACY.md</kbd>). Atalhos: <kbd>D</kbd> diagnósticos · <kbd>?</kbd> ajuda.
+        </p>
+        <p className="meta" aria-live="polite" data-testid="now-singing">
+          {voiced ? `Singing ${noteName}` : "Press START + sing, or SING FIXTURE with no mic"}
+        </p>
+      </section>
+      )}
 
       <VocalCoachPanel
         observation={mic.current}
@@ -505,7 +606,7 @@ function SessionBody() {
         </p>
       </section>
 
-      <section className="panel" aria-label="Som real por samples">
+      <section className="panel" id="som-real" aria-label="Som real por samples">
         <h2>SOM REAL (SAMPLES)</h2>
         <SamplePackPanel
           packs={samples.packs}
