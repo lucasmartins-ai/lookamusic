@@ -206,10 +206,15 @@ function SessionBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  const voiced = mic.current && mic.current.frequency > 0;
+  const rawVoiced = !!(mic.current && mic.current.frequency > 0);
+  // Same stabilized readout as home: lock to the open stable note when
+  // present, else immediate raw mic feedback (attack window).
+  const displayVoiced = cond.stableVoiced || rawVoiced;
+  const displayFrequency = cond.stableVoiced ? cond.stableFrequency : (mic.current?.frequency ?? 0);
+  const voiced = displayVoiced;
   const noteName = useMemo(
-    () => (voiced ? freqToNoteName(mic.current!.frequency) : "—"),
-    [voiced, mic.current],
+    () => (displayVoiced && displayFrequency > 0 ? freqToNoteName(displayFrequency) : "—"),
+    [displayVoiced, displayFrequency],
   );
   const chordLabel = cond.chords.length > 0
     ? cond.chords[cond.chords.length - 1].chord
@@ -235,8 +240,13 @@ function SessionBody() {
   }, [running, mic.diagnostics, mic.history]);
 
   const startSession = () => {
-    cond.ensureAudio();
+    cond.start();
     void mic.start();
+  };
+
+  const stopSession = () => {
+    void mic.stop();
+    cond.stop();
   };
 
   return (
@@ -305,13 +315,13 @@ function SessionBody() {
         </p>
         <div className="controls">
           {running ? (
-            <button className="primary stop" onClick={mic.stop} aria-label="Stop listening" data-testid="stop">
+            <button className="primary stop" onClick={stopSession} aria-label="Stop listening" data-testid="stop">
               <StopIcon size={14} /> STOP
             </button>
           ) : (
             <button
               className="primary"
-              onClick={() => { cond.ensureAudio(); void mic.start(); }}
+              onClick={startSession}
               disabled={mic.status === "requesting"}
               aria-label="Start session"
               data-testid="start"

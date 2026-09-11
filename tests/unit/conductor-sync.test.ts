@@ -13,11 +13,14 @@ import { g4Observations } from "@/features/conductor/fixture";
 
 class RecEngine implements InstrumentEngine {
   readonly scheduled: { events: MusicalEvent[]; ctx: ScheduleContext }[] = [];
+  stoppedCount = 0;
   constructor(readonly id: InstrumentId) {}
   schedule(events: MusicalEvent[], ctx: ScheduleContext): void {
     this.scheduled.push({ events: [...events], ctx: { ...ctx } });
   }
-  stop(): void {}
+  stop(): void {
+    this.stoppedCount++;
+  }
   setVolume(): void {}
   setPan(): void {}
 }
@@ -165,15 +168,41 @@ describe("Conductor sync + latency + pins", () => {
     const s = setup();
     s.conductor.reset(0);
     const midBarSec = 0.5;
-    s.conductor.requestInstrument("guitar", true, midBarSec);
-    const queued = s.conductor.pendingList().find((p) => p.instrument === "guitar");
+    // strings is off by default in the quartet boot (drums/bass/piano/guitar on).
+    s.conductor.requestInstrument("strings", true, midBarSec);
+    const queued = s.conductor.pendingList().find((p) => p.instrument === "strings");
     expect(queued).toBeDefined();
     expect(queued!.effectiveBar).toBeGreaterThanOrEqual(1);
     // Still bar 0 just before the boundary → stays queued.
     s.conductor.tick(s.conductor.transport.barStartSec(1) - 0.05);
-    expect(s.conductor.pendingList().find((p) => p.instrument === "guitar")).toBeDefined();
+    expect(s.conductor.pendingList().find((p) => p.instrument === "strings")).toBeDefined();
     // On the boundary → applied.
     s.conductor.tick(s.conductor.transport.barStartSec(1) + 0.01);
-    expect(s.conductor.pendingList().find((p) => p.instrument === "guitar")).toBeUndefined();
+    expect(s.conductor.pendingList().find((p) => p.instrument === "strings")).toBeUndefined();
+  });
+
+  it("stop() silences all engines, stops scheduler and prevents tick execution", () => {
+    const s = setup();
+    s.conductor.reset(0);
+    expect(s.conductor.isStopped).toBe(false);
+
+    // Stop conductor
+    s.conductor.stop();
+    expect(s.conductor.isStopped).toBe(true);
+    // Every engine received a stop() call to cancel active audio
+    for (const id of IDS) {
+      expect(s.rec[id].stoppedCount).toBeGreaterThanOrEqual(1);
+    }
+
+    // While stopped, tick returns 0 dispatched and schedules nothing
+    const report = s.conductor.tick(1.0);
+    expect(report.dispatched).toBe(0);
+    expect(report.bars).toHaveLength(0);
+
+    // Resume with start()
+    s.conductor.start(1.0);
+    expect(s.conductor.isStopped).toBe(false);
+    const resumeReport = s.conductor.tick(1.05);
+    expect(resumeReport.bars.length).toBeGreaterThan(0);
   });
 });

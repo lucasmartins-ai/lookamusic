@@ -1,6 +1,6 @@
 {
   "name": "lookamusic",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "LookaMusic — browser-based real-time voice-to-band instrument. You sing, LookaMusic builds the band.",
   "scripts": {

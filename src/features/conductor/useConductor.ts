@@ -25,6 +25,7 @@ import { WebAudioSink } from "@/features/instruments/audio-sink";
 import { createBand } from "@/features/instruments/registry";
 import type { InstrumentEngine, MusicalEvent, ScheduleContext } from "@/features/instruments/types";
 import { Conductor, createEngines } from "./conductor";
+import { stableVoice } from "./stable-note";
 import type { DegradationSnapshot } from "./degradation";
 
 export interface ConductorUiSnapshot {
@@ -51,6 +52,17 @@ export interface ConductorUiSnapshot {
   noteCount: number;
   /** Phase 9: instrument the open/close gestures act on. */
   gestureSelected: InstrumentId;
+  isRunning: boolean;
+  /**
+   * Stabilized voice readout for tuner dials (NoteStabilizer output, not
+   * raw worklet pitch). `stableVoiced` is true only while a stable note is
+   * open (duration === 0); callers fall back to the raw mic observation
+   * during the <120 ms attack window or silence.
+   */
+  stableFrequency: number;
+  stableMidi: number;
+  stableConfidence: number;
+  stableVoiced: boolean;
 }
 
 class StubEngine implements InstrumentEngine {
@@ -73,10 +85,21 @@ function stubBand(): Record<InstrumentId, InstrumentEngine> {
 
 const DEFAULT_KEY: KeyEstimate = { root: 0, mode: "major", confidence: 0 };
 
+const INITIAL_ACTIVE: Record<InstrumentId, boolean> = {
+  drums: true,
+  bass: true,
+  piano: true,
+  guitar: true,
+  strings: false,
+  violin: false,
+  sax: false,
+  accordion: false,
+};
+
 export function useConductor() {
   const condRef = useRef<Conductor | null>(null);
   if (!condRef.current || condRef.current.isDisposed) {
-    const engines = createEngines(bus);
+    const engines = createEngines(bus, INITIAL_ACTIVE);
     condRef.current = new Conductor(engines, {
       band: stubBand(),
       schedulerNow: () => performance.now() / 1000,
@@ -84,6 +107,8 @@ export function useConductor() {
       seed: "session",
     }, bus);
     condRef.current.reset(performance.now() / 1000);
+    // Start stopped so the browser does not schedule audio until user starts
+    condRef.current.stop();
   }
 
   const ctxRef = useRef<AudioContext | null>(null);
@@ -93,7 +118,7 @@ export function useConductor() {
     meterText: meterLabel(METER_44),
     key: { ...DEFAULT_KEY },
     chords: [],
-    active: { drums: true, bass: true, piano: true, guitar: false, strings: false, violin: false, sax: false, accordion: false },
+    active: { ...INITIAL_ACTIVE },
     pending: [],
     energy01: 0,
     energyLevel: "low" as EnergyLevel,
@@ -110,6 +135,11 @@ export function useConductor() {
     audioReady: false,
     noteCount: 0,
     gestureSelected: "guitar",
+    isRunning: false,
+    stableFrequency: 0,
+    stableMidi: -1,
+    stableConfidence: 0,
+    stableVoiced: false,
   }));
   const [mixerVersion, setMixerVersion] = useState(0);
   void mixerVersion;
@@ -122,6 +152,10 @@ export function useConductor() {
     const deg = c.degradation.snapshot();
     const p95 = c.latency.p95();
     const perceived = c.latency.perceivedMs(p95);
+    // Stabilized readout: last melody note while still open. Closed notes
+    // (duration > 0) and empty melody mean "no stable pitch right now" —
+    // the dial falls back to raw mic pitch or IDLE.
+    const stable = stableVoice(st.melody);
     setSnap((prev) => ({
       ...prev,
       tempo: st.tempo,
@@ -143,6 +177,11 @@ export function useConductor() {
       dispatchedTotal: stats.dispatchedTotal,
       noteCount: st.melody.length,
       gestureSelected: c.gestureSelected(),
+      isRunning: !c.isStopped,
+      stableFrequency: stable.frequency,
+      stableMidi: stable.midi,
+      stableConfidence: stable.confidence,
+      stableVoiced: stable.voiced,
     }));
   }, []);
 
@@ -170,8 +209,10 @@ export function useConductor() {
   // long sessions late-free. CPU per tick is sub-ms in the panel.
   useEffect(() => {
     const id = setInterval(() => {
-      condRef.current?.tick(performance.now() / 1000);
-      refresh();
+      if (condRef.current && !condRef.current.isStopped) {
+        condRef.current.tick(performance.now() / 1000);
+        refresh();
+      }
     }, 50);
     return () => clearInterval(id);
   }, [refresh]);
@@ -218,6 +259,17 @@ export function useConductor() {
     return true;
   }, []);
 
+  const start = useCallback(() => {
+    ensureAudio();
+    condRef.current?.start(performance.now() / 1000);
+    refresh();
+  }, [ensureAudio, refresh]);
+
+  const stop = useCallback(() => {
+    condRef.current?.stop();
+    refresh();
+  }, [refresh]);
+
   const pushObservation = useCallback((obs: PitchObservation) => {
     condRef.current?.pushObservation(obs);
   }, []);
@@ -252,6 +304,7 @@ export function useConductor() {
   /** Deterministic fixture injection (E2E + manual QA, no mic needed). */
   const injectFixture = useCallback((observations: PitchObservation[], rms = 0.2) => {
     ensureAudio();
+    condRef.current?.start();
     for (const obs of observations) {
       condRef.current?.pushObservation(obs);
       condRef.current?.pushEnergy(rms, obs.timestamp);
@@ -272,6 +325,8 @@ export function useConductor() {
     setEnergyMode,
     setGestureSelected,
     ensureAudio,
+    start,
+    stop,
     injectFixture,
     getMusicalState: () => condRef.current!.state.snapshot(),
     getPhrases: () => condRef.current?.state.phraseRecords() ?? [],

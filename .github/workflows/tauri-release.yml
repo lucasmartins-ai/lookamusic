@@ -56,6 +56,8 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "LookaMusic ${{ github.ref_name }}"
           releaseBody: "Auto-update build. The desktop app picks this up via BUSCAR ATUALIZAÇÃO."
-          releaseDraft: true
+          # false = publicado na hora: o endpoint releases/latest/download/latest.json
+          # só serve releases PUBLICADOS (draft dá 404 e o app nunca vê update).
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

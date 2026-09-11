@@ -20,8 +20,8 @@ import { planDrums } from "@/features/instruments/planning";
 import { demoPassage } from "../helpers/passage";
 
 describe("energy → ensemble (few → all, nested)", () => {
-  it("counts grow low(3) < medium(5) < high(8)", () => {
-    expect(ensembleForEnergy("low")).toHaveLength(3);
+  it("counts grow low(4) < medium(5) < high(8)", () => {
+    expect(ensembleForEnergy("low")).toHaveLength(4);
     expect(ensembleForEnergy("medium")).toHaveLength(5);
     expect(ensembleForEnergy("high")).toHaveLength(8);
   });
@@ -45,7 +45,7 @@ describe("energy → ensemble (few → all, nested)", () => {
   it("returns a copy (callers cannot corrupt the data)", () => {
     const a = ensembleForEnergy("low");
     a.push("sax" as InstrumentId);
-    expect(ensembleForEnergy("low")).toHaveLength(3);
+    expect(ensembleForEnergy("low")).toHaveLength(4);
   });
 });
 
@@ -75,12 +75,13 @@ describe("builtin style library", () => {
     }
   });
 
-  it("every style boots a sounding trio (drums+bass+piano)", () => {
+  it("every style boots a sounding quartet (drums+bass+piano+guitar)", () => {
     for (const s of listStyles()) {
       const active = s.defaults.active;
       expect(active?.drums).toBe(true);
       expect(active?.bass).toBe(true);
       expect(active?.piano).toBe(true);
+      expect(active?.guitar).toBe(true);
     }
   });
 

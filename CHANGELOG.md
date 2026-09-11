@@ -4,6 +4,30 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [Fix voz+banda] — Quarteto padrão, dial estabilizado e YIN sincronizado — OK
+
+- **Banda completa desde o INICIAR**: `trio()` → `quartet()` em
+  `src/features/music/arrangement/presets.ts` (os 5 estilos bootam
+  bateria+baixo+piano+violão); `ENERGY_ENSEMBLE.low` inclui `guitar`
+  (4 < 5 < 8, aninhamento preservado); defaults alinhados em
+  `conductor/state.ts` e `recording/capture.ts` (antes só o
+  `INITIAL_ACTIVE` do hook tinha violão — trocar de estilo o perdia).
+- **Dial/mostrador sem oscilação**: novo `stableVoice()`
+  (`src/features/conductor/stable-note.ts`, puro + 5 testes) exposto no
+  `useConductor` (`stableFrequency/Midi/Confidence/Voiced`); `/` e
+  `/session` travam o rádio/nixie na nota estável aberta e só usam o pitch
+  cru na janela de ataque <120 ms ou silêncio.
+- **YIN sincronizado**: worklet `YIN_THRESHOLD` 0.12→0.1 e fallback
+  0.45→0.5, iguais a `config.pitch`/`yin.ts`; cabeçalho corrigido
+  (espelha `YinDetector`, não autocorrelação).
+- **Typecheck**: removidos `lateTotal/dispatchedTotal` do retorno parado de
+  `Conductor.tick()` (fora do tipo `TickReport`; totais seguem via
+  `schedulerStats()`).
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **601/601 verdes** (73 arquivos; 5 novos `stable-note`);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build`: **verde** (Turbopack, rotas `/`, `/session`, etc.).
+
 ## [Desktop updater v1.2.0] — Tauri auto-atualizável (updater assinado + latest) — OK
 
 - **Auto-update ponta a ponta**:

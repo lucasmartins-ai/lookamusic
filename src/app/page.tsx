@@ -68,12 +68,13 @@ export default function Home() {
   }, [helpOpen]);
 
   const start = () => {
-    cond.ensureAudio();
+    cond.start();
     void startMic();
   };
 
   const stop = () => {
     void stopMic();
+    cond.stop();
   };
 
   useEffect(() => {
@@ -93,8 +94,15 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, [running]);
 
-  const voiced = Boolean(current && current.frequency > 0);
-  const noteName = voiced && current ? freqToNoteName(current.frequency) : "—";
+  const rawVoiced = Boolean(current && current.frequency > 0);
+  // Stabilized readout: while a stable note is open the dial/nixie lock to
+  // it (no octave/fret jumps); during the <120 ms attack window or silence
+  // fall back to the raw mic observation for immediate feedback.
+  const displayVoiced = cond.stableVoiced || rawVoiced;
+  const displayFrequency = cond.stableVoiced ? cond.stableFrequency : (current?.frequency ?? 0);
+  const displayConfidence = cond.stableVoiced ? cond.stableConfidence : (current?.confidence ?? 0);
+  const voiced = displayVoiced;
+  const noteName = displayVoiced && displayFrequency > 0 ? freqToNoteName(displayFrequency) : "—";
   const bpm = Math.round(cond.tempo.playback);
   const meterText = cond.meterText;
   const chordLabel = cond.chords.length > 0 ? cond.chords[cond.chords.length - 1].chord : null;
@@ -236,9 +244,9 @@ export default function Home() {
           {/* Retro Frequency Dial */}
           <div style={{ flex: 1, minWidth: "280px" }}>
             <RetroTunerScale
-              frequency={current?.frequency ?? 0}
-              confidence={current?.confidence ?? 0}
-              voiced={voiced}
+              frequency={displayFrequency}
+              confidence={displayConfidence}
+              voiced={displayVoiced}
             />
           </div>
         </div>
@@ -288,7 +296,7 @@ export default function Home() {
             onToggleSolo={cond.toggleSolo}
             onVolume={cond.setVolume}
             onPan={cond.setPan}
-            onStop={() => {}}
+            onStop={cond.stop}
           />
         )}
 

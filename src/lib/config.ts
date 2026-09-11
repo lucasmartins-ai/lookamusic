@@ -40,8 +40,8 @@ export const config = {
     confidenceThreshold: 0.5,
     /** Phase 2+: median smoothing window. */
     smoothingWindow: 5,
-    /** Phase 2+: hysteresis in semitones before switching candidate. */
-    hysteresisSemitones: 0.6,
+    /** Phase 2+: hysteresis in semitones before switching candidate (absorbs vocal vibrato). */
+    hysteresisSemitones: 0.75,
     /** Phase 2+: minimum stable duration to emit a NoteEvent. */
     stabilityMs: 120,
   },
@@ -167,7 +167,7 @@ export const config = {
     },
     /** Phase 6+: pitched-instrument synthesis recipes (oscillators + envelopes). */
     timbre: {
-      bass: { osc: "triangle", cutoff: 800, attack: 0.01, release: 0.25, detune: 0, octaveGain: 0 },
+      bass: { osc: "triangle", cutoff: 1200, attack: 0.01, release: 0.25, detune: 0, octaveGain: 0.3 },
       piano: { osc: "triangle", cutoff: 2800, attack: 0.005, release: 0.6, detune: 0, octaveGain: 0.35 },
       guitar: { osc: "sawtooth", cutoff: 2400, attack: 0.004, release: 0.35, detune: 0, octaveGain: 0 },
       guitarElectric: { osc: "sawtooth", cutoff: 3800, attack: 0.003, release: 0.3, detune: 0, octaveGain: 0.2 },

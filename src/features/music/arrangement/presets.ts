@@ -32,7 +32,7 @@ export interface MusicalStyle {
 
 /** Who plays per energy level: few → mid → all (audible + visible). */
 export const ENERGY_ENSEMBLE: Record<EnergyLevel, readonly InstrumentId[]> = {
-  low: ["drums", "bass", "piano"],
+  low: ["drums", "bass", "piano", "guitar"],
   medium: ["drums", "bass", "piano", "guitar", "strings"],
   high: ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"],
 };
@@ -44,12 +44,12 @@ export const ENERGY_DENSITY: Record<EnergyLevel, number> = {
   high: 0.85,
 };
 
-function trio(): Record<InstrumentId, boolean> {
+function quartet(): Record<InstrumentId, boolean> {
   return {
     drums: true,
     bass: true,
     piano: true,
-    guitar: false,
+    guitar: true,
     strings: false,
     violin: false,
     sax: false,
@@ -69,7 +69,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "strum",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.5, active: trio() },
+    defaults: { energy: 0.5, active: quartet() },
   },
   {
     id: "ballad",
@@ -82,7 +82,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "arpeggiate",
     strings: "pad-swell",
     dynamics: "follow-energy",
-    defaults: { energy: 0.4, active: trio() },
+    defaults: { energy: 0.4, active: quartet() },
   },
   {
     id: "rock",
@@ -95,7 +95,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "strum-drive",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.7, active: trio() },
+    defaults: { energy: 0.7, active: quartet() },
   },
   {
     id: "folk",
@@ -108,7 +108,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "fingerpick",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.5, active: trio() },
+    defaults: { energy: 0.5, active: quartet() },
   },
   {
     id: "ambient",
@@ -121,7 +121,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "texture",
     strings: "long-pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.3, active: trio() },
+    defaults: { energy: 0.3, active: quartet() },
   },
 ];
 

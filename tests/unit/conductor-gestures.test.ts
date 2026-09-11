@@ -46,22 +46,23 @@ function gesture(events: EventBus, kind: GestureKind): void {
 }
 
 describe("open/close gestures drive the quantized lineup", () => {
-  it("OPEN_HAND via bus queues the selected guitar, applies on the next bar", () => {
+  it("OPEN_HAND via bus queues the selected strings, applies on the next bar", () => {
     const s = setup();
-    expect(s.conductor.gestureSelected()).toBe("guitar");
+    // Quartet boots with guitar on, so the add-path is proven on strings
+    // (off by default); guitar's add/remove is covered below.
+    s.conductor.setGestureSelected("strings");
     gesture(s.events, "OPEN_HAND");
-    expect(s.engines.arrangement.pendingList().map((p) => p.instrument)).toEqual(["guitar"]);
+    expect(s.engines.arrangement.pendingList().map((p) => p.instrument)).toEqual(["strings"]);
     // Vision alone schedules nothing — synthesis is unreachable w/o tick.
     expect(s.scheduledTotal()).toBe(0);
     // The request used wall-clock now; drain everything due.
     s.engines.arrangement.tick(1e12);
-    expect(s.added).toEqual(["guitar"]);
-    expect(s.engines.arrangement.snapshot().active.guitar).toBe(true);
+    expect(s.added).toEqual(["strings"]);
+    expect(s.engines.arrangement.snapshot().active.strings).toBe(true);
   });
 
-  it("CLOSED_HAND removes the selected instrument with InstrumentRemoved", () => {
+  it("CLOSED_HAND removes guitar (on by default in the quartet)", () => {
     const s = setup();
-    s.conductor.applyGesture("OPEN_HAND", 0); // on-boundary → immediate
     expect(s.engines.arrangement.snapshot().active.guitar).toBe(true);
     s.conductor.applyGesture("CLOSED_HAND", 0.5); // mid-bar → queued
     expect(s.engines.arrangement.snapshot().active.guitar).toBe(true);
@@ -103,7 +104,8 @@ describe("finger + swipe gestures drive energy and selection", () => {
     expect(s.conductor.gestureSelected()).toBe("strings");
     s.conductor.applyGesture("OPEN_HAND", 0);
     expect(s.engines.arrangement.snapshot().active.strings).toBe(true);
-    expect(s.engines.arrangement.snapshot().active.guitar).toBe(false);
+    // Quartet keeps guitar on while strings joins.
+    expect(s.engines.arrangement.snapshot().active.guitar).toBe(true);
     s.conductor.applyGesture("SWIPE_LEFT", 0);
     expect(s.conductor.gestureSelected()).toBe("guitar");
   });

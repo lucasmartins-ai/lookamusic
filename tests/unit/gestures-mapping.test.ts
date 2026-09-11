@@ -79,7 +79,7 @@ describe("keyboard + button parity (§44)", () => {
 });
 
 describe("GestureSelection", () => {
-  it("defaults to guitar (trio plays by default, guitar is the next add)", () => {
+  it("defaults to guitar (quartet plays by default, guitar is the selection target)", () => {
     expect(DEFAULT_GESTURE_SELECTED).toBe("guitar");
     expect(new GestureSelection().current()).toBe("guitar");
   });

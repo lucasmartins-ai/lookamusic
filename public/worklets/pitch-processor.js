@@ -1,8 +1,9 @@
 /**
  * Looka pitch AudioWorklet processor — dependency-free DSP (§7).
  *
- * Mirrors AutocorrelationDetector (src/features/pitch/autocorrelation.ts):
- * RMS gate → normalized autocorrelation over 55–1200 Hz → parabolic
+ * Mirrors YinDetector (src/features/pitch/yin.ts):
+ * RMS gate → YIN cumulative mean normalized difference over 55–1200 Hz →
+ * first dip below threshold refined to its local minimum + parabolic
  * refinement → postMessage({frequency, midiNote, confidence, clarity,
  * timestamp, seq, rms}). One message per 2048-sample block (~43 ms @48k).
  */
@@ -12,23 +13,20 @@ const BLOCK = 2048;
 const RMS_GATE = 0.008;
 const MIN_FREQ = 55;
 const MAX_FREQ = 1200;
-const MIN_CONF = 0.25;
+const YIN_THRESHOLD = 0.1;
 
 class LookaPitchProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this._seq = 0;
+    this._acc = new Float32Array(BLOCK);
+    this._fill = 0;
+    this._diff = null;
   }
 
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];
     if (ch) {
-      // Use the first BLOCK samples of the 128-sample quantum accumulation:
-      // AudioWorklet gives 128 frames per call, so accumulate until BLOCK.
-      if (!this._acc) {
-        this._acc = new Float32Array(BLOCK);
-        this._fill = 0;
-      }
       const copy = Math.min(ch.length, BLOCK - this._fill);
       this._acc.set(ch.subarray(0, copy), this._fill);
       this._fill += copy;
@@ -50,56 +48,68 @@ class LookaPitchProcessor extends AudioWorkletProcessor {
     if (rms < RMS_GATE) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
 
     const minLag = Math.max(2, Math.floor(sampleRate / MAX_FREQ));
-    const maxLag = Math.min(buf.length - 2, Math.ceil(sampleRate / MIN_FREQ));
-    const e0 = ac(buf, 0);
-    if (e0 <= 1e-9) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
+    const maxLag = Math.min(Math.floor(buf.length / 2), Math.ceil(sampleRate / MIN_FREQ));
+    const n = buf.length;
 
-    // Peak-picking: o primeiro máximo local acima do limiar é o período.
-    // (Paridade com AutocorrelationDetector TS: argmax global erra oitava —
-    // a quantização faz o 5º múltiplo correlacionar mais que o período,
-    // medido: C#4 colapsava p/ lag 866 em vez de 173 → notas pulando rápido.)
-    const corr = new Float32Array(maxLag + 2);
-    for (let lag = minLag; lag <= maxLag + 1; lag++) {
-      corr[lag] = ac(buf, Math.min(lag, buf.length - 1)) / e0;
+    // YIN Pass 1: difference function + cumulative mean normalized difference
+    if (!this._diff || this._diff.length < maxLag + 2) {
+      this._diff = new Float32Array(maxLag + 2);
     }
-    let bestLag = -1;
-    for (let lag = minLag + 1; lag <= maxLag; lag++) {
-      const c = corr[lag];
-      if (c >= MIN_CONF && c >= corr[lag - 1] && c >= corr[lag + 1]) {
-        bestLag = lag; // first peak wins
+    const diff = this._diff;
+    diff[0] = 1;
+    let running = 0;
+    for (let lag = 1; lag <= maxLag; lag++) {
+      let sum = 0;
+      for (let i = 0; i + lag < n; i++) {
+        const d = buf[i] - buf[i + lag];
+        sum += d * d;
+      }
+      running += sum;
+      diff[lag] = running === 0 ? 0 : (sum * lag) / running;
+    }
+    if (running === 0) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
+
+    // YIN Pass 2: find first dip below YIN_THRESHOLD, then follow to local minimum (Aubio/de Cheveigne)
+    let tau = -1;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      if (diff[lag] < YIN_THRESHOLD) {
+        let local = lag;
+        while (local + 1 <= maxLag && diff[local + 1] < diff[local]) local++;
+        tau = local;
         break;
       }
     }
-    if (bestLag < 0) {
-      return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
+    if (tau < 0) {
+      let best = minLag;
+      for (let lag = minLag + 1; lag <= maxLag; lag++) {
+        if (diff[lag] < diff[best]) best = lag;
+      }
+      if (diff[best] > 0.5) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
+      tau = best;
     }
-    const bestCorr = corr[bestLag];
-    // Parabolic refinement.
-    let refined = bestLag;
-    if (bestLag > 1 && bestLag < buf.length - 2) {
-      const y0 = ac(buf, bestLag - 1) / e0;
-      const y1 = bestCorr;
-      const y2 = ac(buf, bestLag + 1) / e0;
-      const denom = y0 - 2 * y1 + y2;
+
+    // Parabolic interpolation around tau for sub-sample accuracy
+    let refined = tau;
+    if (tau > 0 && tau < maxLag) {
+      const x0 = tau - 1;
+      const x2 = tau + 1;
+      const y0 = diff[x0];
+      const y1 = diff[tau];
+      const y2 = diff[x2];
+      const denom = y0 + y2 - 2 * y1;
       if (Math.abs(denom) > 1e-9) {
-        refined = bestLag + Math.max(-1, Math.min(1, ((y0 - y2) / (2 * denom)) * 0.5));
+        refined = tau + ((y0 - y2) / (2 * denom)) * 0.5;
       }
     }
+
     const frequency = sampleRate / refined;
     if (frequency < MIN_FREQ || frequency > MAX_FREQ) {
       return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
     }
     const midiNote = 69 + 12 * (Math.log(frequency / 440) / Math.LN2);
-    const conf = Math.max(0, Math.min(1, bestCorr));
-    return { ...base, frequency, midiNote, confidence: conf, clarity: conf };
+    const clarity = Math.max(0, Math.min(1, 1 - diff[tau]));
+    return { ...base, frequency, midiNote, confidence: clarity, clarity };
   }
-}
-
-function ac(buf, lag) {
-  let sum = 0;
-  const n = buf.length - lag;
-  for (let i = 0; i < n; i++) sum += buf[i] * buf[i + lag];
-  return sum / n;
 }
 
 registerProcessor("looka-pitch", LookaPitchProcessor);

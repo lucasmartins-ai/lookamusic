@@ -77,7 +77,7 @@ export interface EngineSet {
   dynamics: DynamicsTracker;
 }
 
-export function createEngines(events: EventBus = bus): EngineSet {
+export function createEngines(events: EventBus = bus, initialActive?: Record<InstrumentId, boolean>): EngineSet {
   const neutral = styleById("neutral");
   return {
     smoother: new PitchSmoother(),
@@ -87,7 +87,7 @@ export function createEngines(events: EventBus = bus): EngineSet {
     meter: new MeterTracker(events),
     key: new KeyEstimator(events),
     arrangement: new ArrangementEngine(events, {
-      active: neutral.defaults.active,
+      active: initialActive ?? neutral.defaults.active,
       energy: neutral.defaults.energy ?? 0.5,
     }),
     dynamics: new DynamicsTracker(events),
@@ -215,6 +215,29 @@ export class Conductor {
     this.applyMixerToBand();
   }
 
+  private stopped = false;
+
+  get isStopped(): boolean {
+    return this.stopped;
+  }
+
+  stop(): void {
+    this.stopped = true;
+    this.scheduler.stop();
+    for (const id of Object.keys(this.opts.band) as InstrumentId[]) {
+      this.opts.band[id]?.stop();
+    }
+    this.plannedBars.clear();
+    this.hotPickups.clear();
+  }
+
+  start(originSec?: number): void {
+    this.stopped = false;
+    if (typeof originSec === "number") {
+      this.reset(originSec);
+    }
+  }
+
   reset(originSec: number): void {
     this.transport.reset(originSec);
     this.plannedBars.clear();
@@ -231,7 +254,7 @@ export class Conductor {
 
   /** One raw pitch observation through melody → rhythm → key. */
   pushObservation(obs: PitchObservation): void {
-    if (this.disposed) return;
+    if (this.disposed || this.stopped) return;
     const deg = this.degradation.snapshot();
     this.obsCount += 1;
     if (deg.observeEvery > 1 && this.obsCount % deg.observeEvery !== 0) return;
@@ -256,7 +279,7 @@ export class Conductor {
 
   /** One raw mic RMS sample; Auto mode follows the level (pins survive). */
   pushEnergy(rawRms: number, nowMs: number): void {
-    if (this.disposed) return;
+    if (this.disposed || this.stopped) return;
     const snap = this.engines.dynamics.push(rawRms, nowMs);
     this.state.setDynamics({ inputEnergy: snap.energy01, smoothedEnergy: snap.energy01, level: snap.level });
     if (this.energyMode !== "auto") return;
@@ -271,6 +294,15 @@ export class Conductor {
    * Returns the scheduler report plus planned bars (for tests/diagnostics).
    */
   tick(nowSec: number, opts: { phraseBoundary?: boolean } = {}): TickReport & { bars: number[]; degraded: DegradationSnapshot } {
+    if (this.stopped || this.disposed) {
+      return {
+        dispatched: 0,
+        late: 0,
+        pending: 0,
+        bars: [],
+        degraded: this.degradation.snapshot(),
+      };
+    }
     const t0 = Date.now();
     const tempo = this.engines.tempo.tick(nowSec * 1000);
     this.transport.setTempo(tempo.playback);

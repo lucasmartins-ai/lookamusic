@@ -33,7 +33,7 @@ export type ArrangementGestureIntent =
   | { type: "energy-step"; delta: 1 | -1 }
   | { type: "select-step"; delta: 1 | -1 };
 
-/** First instrument the open/close gestures act on (trio is on by default). */
+/** First instrument the open/close gestures act on (quartet is on by default). */
 export const DEFAULT_GESTURE_SELECTED: InstrumentId = "guitar";
 
 export const ENERGY_ORDER: readonly EnergyLevel[] = ["low", "medium", "high"] as const;
