@@ -33,6 +33,14 @@
   latência); `features/audio/feedback.ts` (puro, com gate de streak
   `confirmObs`) avisa quando o input fica alto e sustentado ENQUANTO a
   banda soa (possível acoplamento mic↔caixa).
+- **Release/CI**: bump 1.3.0 → **1.3.1** em `package.json` /
+  `tauri.conf.json` / `Cargo.toml` / `Cargo.lock`; o workflow passa a
+  **falhar rápido** se a tag não casar com a versão (evita release em que o
+  app nunca vê update), corpo de release informativo e
+  `actions/checkout`/`setup-node` v4 → v5 (fim do aviso de Node 20
+  deprecado). `docs/tauri-updater.md` corrigido: a release é **publicada**
+  na hora (não draft) porque `releases/latest/download/latest.json` só serve
+  releases publicados.
 - **Verificação (Portão AGENTS.md §3)**:
   - `npm test`: **666/666 verdes** (78 arquivos; 19 novos:
     `melody-adaptive-stabilization` 6 — vibrato ±1,2 st não troca a nota,
