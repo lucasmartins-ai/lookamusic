@@ -29,6 +29,9 @@ import { freqToNoteName } from "@/features/pitch/conversions";
 import { INSTRUMENTS, type InstrumentId } from "@/domain/types";
 import { useLearnSettings } from "@/features/learn/useLearnSettings";
 import { LearnPanel } from "@/components/LearnPanel";
+import { useSamplePacks } from "@/features/instruments/useSamplePacks";
+import { SamplePackPanel } from "@/components/SamplePackPanel";
+import { SampleCredits } from "@/components/SampleCredits";
 import { VocalPitchCoach } from "@/features/pitch/coach";
 import { VocalCoachPanel } from "@/components/VocalCoachPanel";
 import { AutotunePanel } from "@/components/AutotunePanel";
@@ -61,6 +64,7 @@ function SessionBody() {
   const recorder = useRecorder();
   const gestures = useGestures();
   const learn = useLearnSettings();
+  const samples = useSamplePacks();
   const coach = useMemo(() => new VocalPitchCoach(), []);
   const params = useSearchParams();
   const [showDiag, setShowDiag] = useState(false);
@@ -499,6 +503,17 @@ function SessionBody() {
         <p className="meta" data-testid="lineup">
           Lineup: {(INSTRUMENTS as readonly InstrumentId[]).filter((id) => cond.active[id]).join(", ") || "none"}
         </p>
+      </section>
+
+      <section className="panel" aria-label="Som real por samples">
+        <h2>SOM REAL (SAMPLES)</h2>
+        <SamplePackPanel
+          packs={samples.packs}
+          online={samples.online}
+          onToggle={samples.setUseReal}
+          onDownload={(id) => void samples.download(id)}
+        />
+        <SampleCredits />
       </section>
 
       <section className="panel" aria-label="Gesture conducting">

@@ -4,6 +4,98 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [Fase 16 — Instrumentos por samples] — Piano/violão/bateria reais, síntese vira fallback — OK
+
+- **TDR-16** (`docs/tdr/tdr-16-sample-instruments.md`): samples como DADO
+  (manifests em `packs/`, nunca hardcoded no engine), `SampleCache`
+  (fetch→decode→AudioBuffer, memória + Cache API, só com consentimento),
+  `SampleVoice` ao lado do `WebAudioSink`, packs fora do bundle, guitarra em
+  síntese (FreePats steel é GPLv3 — não usar).
+- **`SampleCache`** (`sample-cache.ts`, puro + Web API, sem AudioContext no
+  import): sample mais próximo + `playbackRate = 2^(st/12)` p/ afinar ±2 st
+  (`config.instruments.samples.maxDetuneSt`); fora do orçamento → síntese.
+  Chave de cache versionada (`migrate()` derruba geração antiga); `fetch`/
+  `decode` injetáveis (vitest com fakes, zero rede real); backend Cache API
+  (PWA offline-first) com round-trip testado.
+- **`SampleVoice`** (`sample-voice.ts`, `implements VoiceSink`): mesma
+  interface `tone({freq, at, dur, velocity})` via `AudioBufferSourceNode` +
+  envelope de release existente; bateria segura o `tone` de membrana e toca
+  UM one-shot no `noise` pareado (lookup reverso exato em
+  `config.instruments.drumVoices`, sem double-trigger); qualquer falha
+  (rede, decode, pack ausente, toggle em synth) delega ao `WebAudioSink`
+  interno — sem clique, sem exceção, sem silêncio.
+- **Fiação piano → violão → bateria** (`createInstrumentSink`: preferência
+  `config.instruments.samples.<id>.useSamples` + disponibilidade no cache;
+  `enabled()` por nota via flags em memória — toggle instantâneo sem
+  reconstruir o grafo): `useBand` + `useConductor` criam a banda sobre o
+  `getSampleCache()` compartilhado; sem packs o resultado é o sink
+  procedural (paridade total, snapshot testado).
+- **UI mínima** (`/session` → SOM REAL): `SamplePackPanel` (toggle "Som
+  real / Sintetizador" por instrumento, default real quando há pack,
+  progresso de download, estado offline claro) + `SampleCredits` (Salamander
+  CC-BY-3.0 piano/bateria com links, FreePats CC0 violão). Lógica em
+  `sample-store.ts`/`useSamplePacks.ts` (SSR-first, sem hydration
+  mismatch); componentes só renderizam.
+- **Packs** (só URLs https remotas em runtime, nada no bundle/Tauri):
+  `salamander-grand-v8` (piano, CC-BY-3.0, 30 notas 21–108 a cada 3ª menor,
+  ~1.6 MB ≤ 2 MB), `freepats-spanish-classical-guitar` (violão, CC0, 40–88
+  de tom em tom, ~2.4 MB ≤ 3 MB), `salamander-drumkit-oneshots` (bateria,
+  CC-BY-SA-3.0 → só pack opcional, 8 vozes, ~1.5 MB ≤ 2 MB).
+- **Privacidade/arquitetura**: `PRIVACY.md` estendido (100% on-device após
+  download opt-in; downloads só sob ação do usuário); `architecture.md` §16.
+  Export offline segue 100% synth (determinístico; samples no export = futuro
+  explícito).
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **647/647 verdes** (75 arquivos; 27 novos
+    `instruments-samples`: mapeamento ±2st e bordas 21/108, `playbackRate`
+    exato, fallback rede-decode-ausente, manifests cobrindo todo o range,
+    migração de cache, paridade synth sem packs, render 2 compassos
+    bit-estável com packs mockados, orçamentos de peso, scheduler 0 late);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build`: **verde** (Turbopack ~381 ms);
+  - E2E Playwright: **10/11** — `sample-packs.spec` **1/1 verde** (toggle
+    real/synth sem pageerror, com fixture cantando); a falha
+    (`polish.spec`, toggle "d" de diagnostics na home) é pré-existente
+    (reproduzida no HEAD limpo, fora do escopo desta fase).
+
+## [Hotfix voz estável + banda de 9] — Voz sem picote, violão nylon, master limpo — OK
+
+- **Voz estável (`stabilization.ts`, `config.note`)**: excursão além da
+  histerese precisa persistir `confirmMs: 80ms` p/ trocar o candidato
+  (em tempo, não em frames — vale no worklet ~23Hz e nos testes a 100ms);
+  salto exato de ±12st exige `octaveConfirmMs: 200ms` (trava o erro de
+  oitava do detector; salto cantado confirma com atraso); histerese
+  0.75→1.0st (cobre o vibrato); fechamento em
+  `stabilityMs + releaseExtraMs` (120+120ms — oclusiva não corta a nota).
+  Abertura de nota inalterada (ataque continua rápido).
+- **Violão nylon, 9º instrumento**: `violao` em `domain/types`,
+  `planning.planViolao` (dedilhado P–I–M–A, semínimas no calmo / colcheias
+  no cheio, baixo do acorde no downbeat), `violao.ts` + linha no
+  `registry`; fiação nos 4 `PLAN_OF` (conductor, useBand, player, wav);
+  base agora é quinteto (drums+bass+piano+guitar+violao) em `presets`,
+  `conductor/state`, `useConductor`, `capture`, `schema`; `guitar` volta a
+  se chamar "Guitarra" nos 3 painéis, `violao` é o "Violão".
+  Migração `migrateComposition()` na carga (storage + import JSON) p/
+  composições salvas com 8 canais — validação pura segue estrita.
+- **Som limpo**: `createMasterBus()` (input 0.8 + compressor −18dB/4:1 +
+  sala procedural 1.4s wet 0.14, com fallback p/ ambientes sem
+  Dynamics/Convolver) no ao vivo (useBand/useConductor/player) e no WAV
+  offline; `DEFAULT_MIX` por instrumento (bateria/baixo no centro,
+  harmônicos abertos); ruído de membrana da bateria 0.6→0.35; timbres
+  retocados (baixo 800Hz/release .35, piano release .9, guitarra 1800Hz).
+- **Ritmo calmo**: piano em `half-notes` com tríade segurada abaixo de
+  energia 0.35 (2 ataques/compasso em vez do broken-chord corrido).
+- **Verificação (Portão AGENTS.md §3)**:
+  - `npm test`: **620/620 verdes** (74 arquivos; 11 novos:
+    4 estabilização, 2 violão + 1 piano calmo, 2 master bus, 2 migração);
+  - `npm run typecheck`: **0 erros**;
+  - `npm run build`: **verde**;
+  - E2E Playwright: **9/10** — a falha (`polish.spec`, toggle "d" de
+    diagnostics) é pré-existente (reproduzida no stash sem minhas
+    mudanças).
+  - Soak 60min: anéis estacionários (melody 128 / chords 64 / phrases 16,
+    growth 0, 0 late).
+
 ## [Fix voz+banda] — Quarteto padrão, dial estabilizado e YIN sincronizado — OK
 
 - **Banda completa desde o INICIAR**: `trio()` → `quartet()` em

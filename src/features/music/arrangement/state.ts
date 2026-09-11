@@ -102,6 +102,7 @@ function blankActive(): Record<InstrumentId, boolean> {
     bass: false,
     piano: false,
     guitar: false,
+    violao: false,
     strings: false,
     violin: false,
     sax: false,

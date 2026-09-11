@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import {
   anySolo,
+  DEFAULT_MIX,
   defaultMixer,
   effectiveVolume,
   isAudible,
@@ -16,14 +17,22 @@ import {
 } from "@/features/instruments/mixer";
 
 describe("defaults", () => {
-  it("every channel starts audible at 0.9, centered, unmuted, unsoloed", () => {
+  it("every channel starts audible, centered-ish, unmuted, unsoloed (balanced mix)", () => {
     const mixer = defaultMixer();
     for (const id of Object.keys(mixer) as (keyof typeof mixer)[]) {
       expect(isAudible(mixer, id)).toBe(true);
-      expect(effectiveVolume(mixer, id)).toBeCloseTo(0.9, 9);
-      expect(mixer[id].pan).toBe(0);
+      expect(effectiveVolume(mixer, id)).toBeCloseTo(DEFAULT_MIX[id].volume, 9);
+      expect(mixer[id].pan).toBeCloseTo(DEFAULT_MIX[id].pan, 9);
     }
     expect(anySolo(mixer)).toBe(false);
+  });
+
+  it("rhythm section sits centered while harmonic voices open up", () => {
+    const mixer = defaultMixer();
+    expect(mixer.drums.pan).toBe(0);
+    expect(mixer.bass.pan).toBe(0);
+    expect(mixer.violao.pan).toBeLessThan(0);
+    expect(mixer.guitar.pan).toBeGreaterThan(0);
   });
 });
 
@@ -33,7 +42,7 @@ describe("mute", () => {
     mixer = toggleMute(mixer, "piano");
     expect(isAudible(mixer, "piano")).toBe(false);
     expect(effectiveVolume(mixer, "piano")).toBe(0);
-    expect(mixer.piano.volume).toBeCloseTo(0.9, 9);
+    expect(mixer.piano.volume).toBeCloseTo(DEFAULT_MIX.piano.volume, 9);
     expect(isAudible(mixer, "bass")).toBe(true);
     mixer = toggleMute(mixer, "piano");
     expect(isAudible(mixer, "piano")).toBe(true);

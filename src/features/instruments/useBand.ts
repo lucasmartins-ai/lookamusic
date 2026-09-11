@@ -21,7 +21,9 @@ import {
   type TempoState,
   type TimeSignature,
 } from "@/domain/types";
-import { WebAudioSink } from "./audio-sink";
+import { createMasterBus } from "./audio-sink";
+import { createInstrumentSink } from "./sample-voice";
+import { getSampleCache } from "./sample-store";
 import {
   defaultMixer,
   effectiveVolume,
@@ -42,6 +44,7 @@ import {
   planPiano,
   planSax,
   planStrings,
+  planViolao,
   planViolin,
   type PassageInput,
 } from "./planning";
@@ -66,6 +69,7 @@ const PLAN_OF: Record<InstrumentId, (input: PassageInput, bars: number) => Music
   bass: planBass,
   piano: planPiano,
   guitar: planGuitar,
+  violao: planViolao,
   strings: planStrings,
   violin: planViolin,
   sax: planSax,
@@ -111,12 +115,14 @@ export function useBand(snapshot: BandSnapshot) {
       if (!AC) return false;
       ctx = new AC({ latencyHint: "interactive" } as AudioContextOptions);
       ctxRef.current = ctx;
-      const master = ctx.createGain();
-      master.gain.value = 0.9;
-      master.connect(ctx.destination);
+      const master = createMasterBus(ctx, ctx.destination).input;
       const liveCtx = ctx;
       const liveMaster = master;
-      bandRef.current = createBand(() => new WebAudioSink(liveCtx, liveMaster));
+      // Phase 16: piano/violão/bateria resolve real samples when the pack is
+      // cached (shared SampleCache, consent-gated downloads); anything else
+      // — or any miss — is the procedural WebAudioSink, invisibly.
+      const cache = getSampleCache();
+      bandRef.current = createBand((id) => createInstrumentSink(liveCtx, liveMaster, id, cache));
       setAudioReady(true);
     }
     if (ctx.state === "suspended") void ctx.resume();

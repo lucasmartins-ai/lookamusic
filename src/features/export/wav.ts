@@ -7,7 +7,7 @@
 import type { Composition, InstrumentId, PitchClass } from "@/domain/types";
 import { barQuarters } from "@/features/music/rhythm/meter";
 import { createBand } from "@/features/instruments/registry";
-import { WebAudioSink } from "@/features/instruments/audio-sink";
+import { WebAudioSink, createMasterBus } from "@/features/instruments/audio-sink";
 import {
   barQuarters as planBarQuarters,
   planAccordion,
@@ -17,6 +17,7 @@ import {
   planPiano,
   planSax,
   planStrings,
+  planViolao,
   planViolin,
   type PassageInput,
 } from "@/features/instruments/planning";
@@ -31,6 +32,7 @@ const PLAN_OF: Record<InstrumentId, (input: PassageInput, bars: number) => Music
   bass: planBass,
   piano: planPiano,
   guitar: planGuitar,
+  violao: planViolao,
   strings: planStrings,
   violin: planViolin,
   sax: planSax,
@@ -240,10 +242,9 @@ export async function renderToWav(
 
   const offlineCtx = new OfflineContextClass(2, totalFrames, sampleRate);
 
-  // Master bus
-  const masterGain = offlineCtx.createGain();
-  masterGain.gain.value = 0.9;
-  masterGain.connect(offlineCtx.destination);
+  // Master bus (comprimido + sala curta, igual ao ao vivo).
+  const masterBus = createMasterBus(offlineCtx, offlineCtx.destination);
+  const masterGain = masterBus.input;
 
   // 1. Synthesize Lead Melody Voice
   const melodyGain = offlineCtx.createGain();

@@ -19,7 +19,7 @@ class NullEngine implements InstrumentEngine {
   setPan(): void {}
 }
 
-const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"];
+const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"];
 
 describe("Conductor 15-min soak (simulated)", () => {
   it("900 s clean: bounded rings, 0 late, monotonic bars", () => {

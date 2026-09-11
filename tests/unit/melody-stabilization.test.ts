@@ -122,6 +122,47 @@ describe("note endings", () => {
   });
 });
 
+describe("hotfix voz estável: confirmação + trava de oitava + release", () => {
+  it("alternância rápida G4↔G#4 nunca troca a nota aberta", () => {
+    const { stab, seen } = harness();
+    feed((t) => stab.push(smObs(G_4, t)), 0, 200);
+    expect(names(seen)).toEqual(["NoteStarted"]);
+    for (let t = 220; t <= 620; t += 20) {
+      stab.push(smObs(t % 40 === 20 ? G_SHARP_4 : G_4, t));
+    }
+    expect(names(seen)).toEqual(["NoteStarted"]);
+    expect(stab.openNote()?.midi).toBe(G_4);
+  });
+
+  it("flicker de oitava G4↔G5 intermitente não quebra a nota", () => {
+    const { stab, seen } = harness();
+    feed((t) => stab.push(smObs(G_4, t)), 0, 200);
+    for (let t = 220; t <= 620; t += 20) {
+      stab.push(smObs(t % 40 === 20 ? G_4 + 12 : G_4, t));
+    }
+    expect(names(seen)).toEqual(["NoteStarted"]);
+    expect(stab.openNote()?.midi).toBe(G_4);
+  });
+
+  it("salto de oitava sustentado confirma (com atraso) via legato", () => {
+    const { stab, seen } = harness();
+    feed((t) => stab.push(smObs(G_4, t)), 0, 200);
+    feed((t) => stab.push(smObs(G_4 + 12, t)), 220, 700);
+    const changed = seen.filter((s) => s.name === "NoteChanged");
+    expect(changed).toHaveLength(1);
+    expect((changed[0].payload as DomainEvents["NoteChanged"]).midi).toBe(G_4 + 12);
+    expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
+  });
+
+  it("gap curto de oclusiva não fecha a nota (release estendido)", () => {
+    const { stab, seen } = harness();
+    feed((t) => stab.push(smObs(G_4, t)), 0, 300);
+    feed((t) => stab.push(smUnvoiced(t)), 320, 440);
+    feed((t) => stab.push(smObs(G_4, t)), 460, 700);
+    expect(names(seen)).toEqual(["NoteStarted"]);
+  });
+});
+
 describe("integration: synthetic observations → ordered NoteEvents", () => {
   it("completes two notes sorted in time with unique ids", () => {
     const { stab, seen } = harness();

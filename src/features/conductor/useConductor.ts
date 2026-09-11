@@ -21,7 +21,9 @@ import type {
 import { METER_44, meterLabel } from "@/features/music/rhythm/meter";
 import type { EnergyLevel } from "@/features/music/rhythm/energy";
 import { listStyles } from "@/features/music/arrangement/presets";
-import { WebAudioSink } from "@/features/instruments/audio-sink";
+import { createMasterBus } from "@/features/instruments/audio-sink";
+import { createInstrumentSink } from "@/features/instruments/sample-voice";
+import { getSampleCache } from "@/features/instruments/sample-store";
 import { createBand } from "@/features/instruments/registry";
 import type { InstrumentEngine, MusicalEvent, ScheduleContext } from "@/features/instruments/types";
 import { Conductor, createEngines } from "./conductor";
@@ -77,7 +79,7 @@ class StubEngine implements InstrumentEngine {
 }
 
 function stubBand(): Record<InstrumentId, InstrumentEngine> {
-  const ids: InstrumentId[] = ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"];
+  const ids: InstrumentId[] = ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"];
   const band = {} as Record<InstrumentId, InstrumentEngine>;
   for (const id of ids) band[id] = new StubEngine(id);
   return band;
@@ -90,6 +92,7 @@ const INITIAL_ACTIVE: Record<InstrumentId, boolean> = {
   bass: true,
   piano: true,
   guitar: true,
+  violao: true,
   strings: false,
   violin: false,
   sax: false,
@@ -239,17 +242,18 @@ export function useConductor() {
     if (!ctx) {
       ctx = new AC({ latencyHint: "interactive" } as AudioContextOptions);
       ctxRef.current = ctx;
-      const master = ctx.createGain();
-      master.gain.value = 0.9;
-      master.connect(ctx.destination);
+      const master = createMasterBus(ctx, ctx.destination).input;
       const liveCtx = ctx;
       const liveMaster = master;
       const toAudio = (t: number): number => {
         const nowTransport = performance.now() / 1000;
         return liveCtx.currentTime + Math.max(0, t - nowTransport) + 0.04;
       };
+      // Phase 16: same sample wiring as useBand — shared consent-gated cache,
+      // procedural fallback invisible without packs.
+      const cache = getSampleCache();
       condRef.current?.setAudioOutput(
-        createBand(() => new WebAudioSink(liveCtx, liveMaster)),
+        createBand((id) => createInstrumentSink(liveCtx, liveMaster, id, cache)),
         toAudio,
         () => liveCtx.currentTime,
       );

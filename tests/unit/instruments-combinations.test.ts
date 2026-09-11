@@ -11,6 +11,7 @@ import { planDrumsBar } from "@/features/instruments/drums";
 import { planBassBar } from "@/features/instruments/bass";
 import { planPianoBar } from "@/features/instruments/piano";
 import { planGuitarBar } from "@/features/instruments/guitar";
+import { planViolaoBar } from "@/features/instruments/violao";
 import { planStringsBar } from "@/features/instruments/strings";
 import { planViolinBar } from "@/features/instruments/violin";
 import { planSaxBar } from "@/features/instruments/sax";
@@ -23,6 +24,7 @@ const PLANS: Record<InstrumentId, (bars: number) => MusicalEvent[]> = {
   bass: (b) => planBassBar(demoPassage(), b),
   piano: (b) => planPianoBar(demoPassage(), b),
   guitar: (b) => planGuitarBar(demoPassage(), b),
+  violao: (b) => planViolaoBar(demoPassage(), b),
   strings: (b) => planStringsBar(demoPassage(), b),
   violin: (b) => planViolinBar(demoPassage(), b),
   sax: (b) => planSaxBar(demoPassage(), b),
@@ -35,6 +37,7 @@ const COMBINATIONS: InstrumentId[][] = [
   ["bass"],
   ["piano"],
   ["guitar"],
+  ["violao"],
   ["strings"],
   ["violin"],
   ["sax"],
@@ -42,8 +45,9 @@ const COMBINATIONS: InstrumentId[][] = [
   ["drums", "bass"],
   ["piano", "bass", "drums"],
   ["guitar", "strings"],
+  ["guitar", "violao"],
   ["violin", "sax", "accordion"],
-  ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"],
+  ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"],
 ];
 
 describe("combination table: every subset renders without error", () => {
@@ -82,7 +86,7 @@ describe("same composition, any combination", () => {
       for (const id of combo) band[id]?.schedule(PLANS[id](2), ctx);
       return sinks;
     };
-    const full = render(["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"]);
+    const full = render(["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"]);
     const subset = render(["drums", "bass"]);
     for (const id of ["drums", "bass"] as InstrumentId[]) {
       expect(subset.get(id)?.tones).toEqual(full.get(id)?.tones);

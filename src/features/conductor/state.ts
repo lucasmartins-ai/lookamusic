@@ -47,7 +47,7 @@ export class ConductorState {
   private chords: ChordEvent[] = [];
   private arrangement: ArrangementState = {
     active: {
-      drums: true, bass: true, piano: true, guitar: true,
+      drums: true, bass: true, piano: true, guitar: true, violao: true,
       strings: false, violin: false, sax: false, accordion: false,
     },
     energy: 0.5,

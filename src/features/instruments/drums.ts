@@ -13,6 +13,14 @@ export function planDrumsBar(input: PassageInput, bars: number) {
   return planDrums(input, bars);
 }
 
+/**
+ * Phase 16 wiring (3º da fila): one-shots `salamander-drumkit-oneshots`
+ * (CC-BY-SA-3.0 → pack opcional em runtime, NUNCA no bundle) via
+ * `createInstrumentSink` (`config.instruments.samples.drums` +
+ * `SampleCache`); sem pack, membrana+ruído procedurais bit-idênticos.
+ */
+export const DRUMS_SAMPLE_PACK_ID = "salamander-drumkit-oneshots" as const;
+
 export function createDrumsEngine(sink: VoiceSink): InstrumentEngine {
   return new EngineBase("drums", sink, { kind: "drums" });
 }

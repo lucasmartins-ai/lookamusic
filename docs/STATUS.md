@@ -3,8 +3,8 @@
 > Agente: este é o arquivo que responde "qual é a próxima fase?".
 > Usuário: basta dizer **"Vamos para a próxima fase"**.
 
-- **Fase atual:** Overhaul 1.3 — OK (Live Audio Engine Fix, Timeline Synthesizer & Neumorphic Vintage Hi-Fi Design)
-- **Próxima fase:** Concluído — Todas as fases, correções de áudio ao vivo e melhorias estéticas entregues com portão de qualidade 100% verde (590/590 testes)
+- **Fase atual:** Fase 16 — Instrumentos por samples (sintetizador vira fallback) — OK
+- **Próxima fase:** a definir — Fase 17 ainda sem prompt em `docs/prompts/` (não executar nada novo sem prompt)
 
 ## Todo-list das fases (só marque OK com o gate do AGENTS.md §3 verde)
 
@@ -24,5 +24,6 @@
 - [x] Fase 13 — Modo educacional — OK (516/516 testes unitários, 17 novos; cantar C–E–G mostra "tríade de C maior"; G–D–Em–C mostra "funções I–V–vi–IV em G"; cadências canônicas autêntica/plagal/engano/semicadência; condução de vozes e modulação; escopo progressivo em 9 níveis; toggle global on/off sem peso acadêmico no UI quando desligado; painel contextual "O que acabou de acontecer?" em /session; estúdio /learn + laboratório interativo; 8/8 testes E2E Playwright verdes)
 - [x] Fase 14 — Qualidade e endurecimento — OK (546/546 testes unitários, 30 novos; 9/9 testes E2E Playwright; soaks 5/15/30/60 min comprovados com 0% crescimento estacionário de memória e 0 atrasos; latência do pipeline voz→evento p95 < 0.5 ms e percepção voz→banda 120.5 ms vs orçamento 250 ms; acurácia C2–C6 com RMSE < 40¢ e 0 erros de oitava; 100% de precisão nos 9 gestos canônicos e 0% de misfire; proteção contra sobrecarga de CPU com degradação graciosa com histerese; limpeza de ciclo de vida no unmount do condutor e proteção estrita contra vazamento de memória)
 - [x] Fase 15 — Lançamento portfólio — OK (build Turbopack 318 ms; README final com quickstart e arquitetura em 1 figura; case study técnico detalhado em docs/case-study.md; galeria visual com 5 screenshots em public/demo/; suíte de smoke test E2E 10/10 verde; 546/546 testes unitários verdes; typecheck 0 erros; PRIVACY.md 100% on-device e licenças de sintetizadores procedurais verificadas)
+- [x] Fase 16 — Instrumentos por samples — OK (647/647 testes, 27 novos; piano Salamander CC-BY ~1.6MB + violão FreePats CC0 ~2.4MB + bateria Salamander CC-BY-SA ~1.5MB como packs opt-in; sem packs paridade total com a síntese; toggle real/synth instantâneo; E2E sample-packs 1/1 verde; typecheck 0 erros; build Turbopack verde)
 
 Detalhe de cada entrega: `CHANGELOG.md`. Plano e aceite: `docs/roadmap.md`.

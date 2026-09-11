@@ -12,6 +12,7 @@ import { chordTones } from "@/features/music/theory/chords";
 import { planBassBar } from "@/features/instruments/bass";
 import { planPianoBar } from "@/features/instruments/piano";
 import { planGuitarBar } from "@/features/instruments/guitar";
+import { planViolaoBar } from "@/features/instruments/violao";
 import { planStringsBar } from "@/features/instruments/strings";
 import { planViolinBar } from "@/features/instruments/violin";
 import { planSaxBar } from "@/features/instruments/sax";
@@ -61,6 +62,41 @@ describe("guitar: strum + arpeggiate", () => {
     const strum = events.filter((e) => e.beat < 1);
     expect(strum.length).toBeGreaterThanOrEqual(4); // full chord across the strings
     expect(strum[strum.length - 1].beat - strum[0].beat).toBeLessThan(0.5);
+  });
+});
+
+describe("violao: fingerpick dedilhado, sem strum duplo", () => {
+  it("dedilha baixo + arpejo com tons do acorde, ordenado no tempo", () => {
+    const events = planViolaoBar(demoPassage({ chords: [C_MAJOR], phraseStarts: [] }), 1);
+    expect(events.length).toBeGreaterThanOrEqual(4);
+    const allowed = new Set(chordTones(C_MAJOR));
+    for (const e of events) {
+      expect(e.instrument).toBe("violao");
+      expect(allowed.has((e.note.midi % 12) as PitchClass)).toBe(true);
+    }
+    for (let i = 1; i < events.length; i++) {
+      expect(events[i].beat).toBeGreaterThanOrEqual(events[i - 1].beat);
+    }
+    // Calmo (energia 0.7 → semínimas): primeiro ataque é o baixo do acorde.
+    expect(events[0].beat).toBe(0);
+    expect(events[0].note.midi % 12).toBe(C_MAJOR.root);
+  });
+
+  it("energia alta adensa o dedilhado sem sair do compasso", () => {
+    const calm = planViolaoBar(demoPassage({ chords: [C_MAJOR], energy01: 0.3 }), 1);
+    const busy = planViolaoBar(demoPassage({ chords: [C_MAJOR], energy01: 0.9 }), 1);
+    expect(busy.length).toBeGreaterThan(calm.length);
+    for (const e of busy) expect(e.beat).toBeLessThan(4);
+  });
+});
+
+describe("piano calmo: half-notes sustentadas em baixa energia", () => {
+  it("energia baixa segura o acorde (2 ataques), energia alta corre o broken-chord", () => {
+    const calm = planPianoBar(demoPassage({ chords: [C_MAJOR], energy01: 0.2 }), 1);
+    expect(calm.filter((e) => e.beat === 0)).toHaveLength(3); // tríade
+    expect(new Set(calm.map((e) => e.beat)).size).toBe(2); // 2 ataques
+    const busy = planPianoBar(demoPassage({ chords: [C_MAJOR], energy01: 0.7 }), 1);
+    expect(busy.length).toBe(4);
   });
 });
 

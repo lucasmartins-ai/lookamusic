@@ -22,9 +22,29 @@ export function defaultChannel(): ChannelState {
   return { volume: 0.9, pan: 0, muted: false, solo: false };
 }
 
+/**
+ * Hotfix som limpo: mix de partida equilibrado por instrumento (antes
+ * tudo em 0.9/centro, o que empastava base + harmonia e clipava o master).
+ * Cozinha (bateria/baixo) no centro, harmônicos levemente abertos.
+ */
+export const DEFAULT_MIX: Record<InstrumentId, { volume: number; pan: number }> = {
+  drums: { volume: 0.7, pan: 0 },
+  bass: { volume: 0.75, pan: 0 },
+  piano: { volume: 0.8, pan: -0.15 },
+  guitar: { volume: 0.7, pan: 0.2 },
+  violao: { volume: 0.78, pan: -0.25 },
+  strings: { volume: 0.6, pan: 0.15 },
+  violin: { volume: 0.72, pan: 0.3 },
+  sax: { volume: 0.7, pan: -0.2 },
+  accordion: { volume: 0.6, pan: 0.25 },
+};
+
 export function defaultMixer(): MixerState {
   const mixer = {} as MixerState;
-  for (const id of INSTRUMENTS) mixer[id] = defaultChannel();
+  for (const id of INSTRUMENTS) {
+    const d = DEFAULT_MIX[id] ?? { volume: 0.9, pan: 0 };
+    mixer[id] = { volume: d.volume, pan: d.pan, muted: false, solo: false };
+  }
   return mixer;
 }
 

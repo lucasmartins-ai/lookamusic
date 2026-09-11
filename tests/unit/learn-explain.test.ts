@@ -52,7 +52,7 @@ function mockState(overrides: Partial<MusicalState> = {}): MusicalState {
       onsets: [],
     },
     arrangement: {
-      active: { drums: true, bass: true, piano: true, guitar: false, strings: false, violin: false, sax: false, accordion: false },
+      active: { drums: true, bass: true, piano: true, guitar: false, violao: false, strings: false, violin: false, sax: false, accordion: false },
       energy: 0.5,
     },
     dynamics: { inputEnergy: 0.5, smoothedEnergy: 0.5, level: "medium" },

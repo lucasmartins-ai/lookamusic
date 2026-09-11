@@ -27,7 +27,7 @@ class SilentSink implements InstrumentEngine {
 }
 
 const IDS: InstrumentId[] = [
-  "drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion",
+  "drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion",
 ];
 
 describe("Phase 14 — Memory Leak Hunting & Endurance Soaks", () => {

@@ -45,6 +45,7 @@ function mockState(melodyMidi: number[] = [60]): MusicalState {
         bass: true,
         piano: true,
         guitar: false,
+        violao: false,
         strings: false,
         violin: false,
         sax: false,

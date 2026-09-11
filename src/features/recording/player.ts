@@ -11,7 +11,7 @@ import {
   type InstrumentId,
   type PitchClass,
 } from "@/domain/types";
-import { WebAudioSink } from "@/features/instruments/audio-sink";
+import { WebAudioSink, createMasterBus } from "@/features/instruments/audio-sink";
 import { createBand } from "@/features/instruments/registry";
 import { barQuarters, METER_44 } from "@/features/music/rhythm/meter";
 import {
@@ -22,6 +22,7 @@ import {
   planPiano,
   planSax,
   planStrings,
+  planViolao,
   planViolin,
   type PassageInput,
 } from "@/features/instruments/planning";
@@ -34,6 +35,7 @@ const PLAN_OF: Record<InstrumentId, (input: PassageInput, bars: number) => Music
   bass: planBass,
   piano: planPiano,
   guitar: planGuitar,
+  violao: planViolao,
   strings: planStrings,
   violin: planViolin,
   sax: planSax,
@@ -57,9 +59,7 @@ export class CompositionPlayer {
     if (!AC) return false;
     if (!this.ctx) {
       this.ctx = new AC({ latencyHint: "interactive" } as AudioContextOptions);
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.9;
-      this.master.connect(this.ctx.destination);
+      this.master = createMasterBus(this.ctx, this.ctx.destination).input;
       const liveCtx = this.ctx;
       const liveMaster = this.master;
       this.band = createBand(() => new WebAudioSink(liveCtx, liveMaster));

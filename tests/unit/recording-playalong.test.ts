@@ -17,7 +17,7 @@ function baseState(): MusicalState {
     chords: [],
     rhythm: { tempo: { estimated: 90, target: 90, playback: 90, confidence: 1 }, meter: { numerator: 4, denominator: 4 }, density: 0.5, onsets: [] },
     arrangement: {
-      active: { drums: true, bass: true, piano: true, guitar: false, strings: false, violin: false, sax: false, accordion: false },
+      active: { drums: true, bass: true, piano: true, guitar: false, violao: false, strings: false, violin: false, sax: false, accordion: false },
       energy: 0.5,
     },
     dynamics: { inputEnergy: 0.5, smoothedEnergy: 0.5, level: "medium" },

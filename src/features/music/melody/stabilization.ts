@@ -9,8 +9,12 @@
  * - A candidate pitch must stay within `hysteresisSemitones` of itself and
  *   persist for `stabilityMs` before it becomes a stable note. Brief
  *   excursions (vibrato edge, one-frame G#4 inside G4) never emit.
- * - Silence (unvoiced) must persist for `stabilityMs` before the open note
- *   closes, so single-frame dropouts don't split notes. Duration is measured
+ * - Leaving the hysteresis band needs `confirmMs` of persistence
+ *   (`octaveConfirmMs` for exact ±12 st jumps) before the candidate
+ *   switches; unconfirmed wobble never re-arms the window.
+ * - Silence (unvoiced) must persist for `stabilityMs + releaseExtraMs`
+ *   before the open note closes, so single-frame dropouts and stop
+ *   consonants don't split notes. Duration is measured
  *   to the last voiced frame, so it stays exact.
  * - A stable pitch change under continuous voicing is legato: the open note
  *   keeps its id/start and emits NoteChanged. A change after any unvoiced
@@ -47,6 +51,15 @@ export class NoteStabilizer {
   private candidateSinceMs = 0;
   private candidateConfSum = 0;
   private candidateFrames = 0;
+  /**
+   * Hotfix voz estável: timestamp do 1º frame consecutivo além da
+   * histerese (null dentro da banda). A troca de candidato exige que a
+   * excursão persista por `config.note.confirmMs` — vibrato e flicker
+   * de oitava breves nunca re-armam a janela, então a nota aberta para
+   * de picotar. Em tempo, não em frames: vale em qualquer taxa de
+   * observação (worklet ~23 Hz ou testes em 100 ms).
+   */
+  private awaySinceMs: number | null = null;
   private open: OpenNote | null = null;
   private silenceSinceMs: number | null = null;
   private readonly completed: NoteEvent[] = [];
@@ -55,6 +68,7 @@ export class NoteStabilizer {
 
   reset(): void {
     this.candidateMidi = null;
+    this.awaySinceMs = null;
     this.open = null;
     this.silenceSinceMs = null;
     this.completed.length = 0;
@@ -81,9 +95,15 @@ export class NoteStabilizer {
     if (this.candidateMidi === null) {
       this.startCandidate(m, sm.timestamp, sm.confidence);
     } else if (Math.abs(sm.midiNote - this.candidateMidi) >= config.note.hysteresisSemitones) {
-      // Hysteresis trip: new candidate, needs its own full stability window.
+      // Hysteresis trip: needs to persist before it earns its own
+      // stability window. The sounding note keeps ringing while the
+      // excursion is unconfirmed (no accumulation either side yet).
+      if (this.awaySinceMs === null) this.awaySinceMs = sm.timestamp;
+      if (this.open) this.open.lastVoicedMs = sm.timestamp;
+      if (sm.timestamp - this.awaySinceMs < this.confirmThresholdMs(m)) return;
       this.startCandidate(m, sm.timestamp, sm.confidence);
     } else {
+      this.awaySinceMs = null;
       this.candidateConfSum += sm.confidence;
       this.candidateFrames += 1;
     }
@@ -119,6 +139,21 @@ export class NoteStabilizer {
     this.candidateSinceMs = nowMs;
     this.candidateConfSum = conf;
     this.candidateFrames = 1;
+    this.awaySinceMs = null;
+  }
+
+  /**
+   * Hotfix voz estável: salto exato de ±12 st contra a nota aberta é o
+   * erro de oitava clássico do detector — exige confirmação estendida.
+   * Salto cantado de verdade persiste e confirma com atraso; flicker
+   * intermitente nunca confirma e a nota se mantém.
+   */
+  private confirmThresholdMs(m: MidiNote): number {
+    const open = this.open?.midi;
+    if (open !== undefined && Math.abs(m - open) === 12) {
+      return config.note.octaveConfirmMs;
+    }
+    return config.note.confirmMs;
   }
 
   private candidateMeanConf(): Confidence {
@@ -190,7 +225,8 @@ export class NoteStabilizer {
     }
     if (this.silenceSinceMs === null) this.silenceSinceMs = nowMs;
     this.open.cleanLegato = false;
-    if (nowMs - this.silenceSinceMs >= config.note.stabilityMs) {
+    const closeAfterMs = config.note.stabilityMs + config.note.releaseExtraMs;
+    if (nowMs - this.silenceSinceMs >= closeAfterMs) {
       this.closeOpen(this.silenceAnchorMs(this.open));
     }
   }

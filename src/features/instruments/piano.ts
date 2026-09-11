@@ -12,6 +12,15 @@ export function planPianoBar(input: PassageInput, bars: number) {
   return planPiano(input, bars);
 }
 
+/**
+ * Phase 16 wiring (1º da fila piano → violão → bateria): o som real vem do
+ * pack `salamander-grand-v8` (CC-BY-3.0) via `createInstrumentSink`
+ * (preferência em `config.instruments.samples.piano.useSamples` +
+ * disponibilidade no `SampleCache`); sem pack o sink é o `WebAudioSink`
+ * procedural — fallback invisível. O engine não contém URLs (só o packId).
+ */
+export const PIANO_SAMPLE_PACK_ID = "salamander-grand-v8" as const;
+
 export function createPianoEngine(sink: VoiceSink): InstrumentEngine {
   return new EngineBase("piano", sink, pitchedTimbreOf("piano"));
 }

@@ -32,9 +32,9 @@ export interface MusicalStyle {
 
 /** Who plays per energy level: few → mid → all (audible + visible). */
 export const ENERGY_ENSEMBLE: Record<EnergyLevel, readonly InstrumentId[]> = {
-  low: ["drums", "bass", "piano", "guitar"],
-  medium: ["drums", "bass", "piano", "guitar", "strings"],
-  high: ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"],
+  low: ["drums", "bass", "piano", "guitar", "violao"],
+  medium: ["drums", "bass", "piano", "guitar", "violao", "strings"],
+  high: ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"],
 };
 
 /** How busy per energy level (0–1, feeds the accompaniment renderer). */
@@ -44,12 +44,13 @@ export const ENERGY_DENSITY: Record<EnergyLevel, number> = {
   high: 0.85,
 };
 
-function quartet(): Record<InstrumentId, boolean> {
+function quintet(): Record<InstrumentId, boolean> {
   return {
     drums: true,
     bass: true,
     piano: true,
     guitar: true,
+    violao: true,
     strings: false,
     violin: false,
     sax: false,
@@ -69,7 +70,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "strum",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.5, active: quartet() },
+    defaults: { energy: 0.5, active: quintet() },
   },
   {
     id: "ballad",
@@ -82,7 +83,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "arpeggiate",
     strings: "pad-swell",
     dynamics: "follow-energy",
-    defaults: { energy: 0.4, active: quartet() },
+    defaults: { energy: 0.4, active: quintet() },
   },
   {
     id: "rock",
@@ -95,7 +96,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "strum-drive",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.7, active: quartet() },
+    defaults: { energy: 0.7, active: quintet() },
   },
   {
     id: "folk",
@@ -108,7 +109,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "fingerpick",
     strings: "pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.5, active: quartet() },
+    defaults: { energy: 0.5, active: quintet() },
   },
   {
     id: "ambient",
@@ -121,7 +122,7 @@ const BUILTINS: MusicalStyle[] = [
     guitar: "texture",
     strings: "long-pad",
     dynamics: "follow-energy",
-    defaults: { energy: 0.3, active: quartet() },
+    defaults: { energy: 0.3, active: quintet() },
   },
 ];
 

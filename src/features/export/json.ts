@@ -4,7 +4,7 @@
  * Ensures forward/backward compatibility, schema migration, and legible error reporting.
  */
 import type { Composition } from "@/domain/types";
-import { validateComposition, CompositionValidationError } from "@/features/recording/schema";
+import { validateComposition, CompositionValidationError, migrateComposition } from "@/features/recording/schema";
 
 export const CURRENT_EXPORT_SCHEMA_VERSION = 1;
 
@@ -81,9 +81,9 @@ export function importFromJson(jsonStr: string): Composition {
       throw new ExportSchemaError("O envelope de exportação não contém o objeto 'composition'.");
     }
 
-    // Version 1 validation
+    // Version 1 validation (pre-9-instrument payloads migrate first).
     try {
-      return validateComposition(record.composition);
+      return validateComposition(migrateComposition(record.composition));
     } catch (err) {
       if (err instanceof CompositionValidationError) {
         throw err;
@@ -95,9 +95,9 @@ export function importFromJson(jsonStr: string): Composition {
   }
 
   // Case 2: Legacy unversioned raw Composition (e.g. direct export of Composition object)
-  // Attempt to validate directly as a legacy composition
+  // Attempt to migrate, then validate directly as a legacy composition
   try {
-    return validateComposition(record);
+    return validateComposition(migrateComposition(record));
   } catch (err) {
     if (err instanceof CompositionValidationError) {
       throw new ExportSchemaError(

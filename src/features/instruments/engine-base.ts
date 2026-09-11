@@ -127,7 +127,9 @@ export class EngineBase implements InstrumentEngine {
     this.sink.noise({
       at,
       dur: recipe.durSec,
-      velocity: recipe.membraneFrom > 0 ? velocity * 0.6 : velocity,
+      // Hotfix som limpo: o ruído em vozes com membrana (kick/tom/cajon)
+      // é só ataque — corpo vem do sweep senoidal. Antes 0.6 sujava o grave.
+      velocity: recipe.membraneFrom > 0 ? velocity * 0.35 : velocity,
       filterType: recipe.filterType as BiquadFilterType,
       filterFreq: recipe.filterFreq,
     });

@@ -3,6 +3,7 @@ import {
   CompositionValidationError,
   createDefaultComposition,
   isComposition,
+  migrateComposition,
   validateComposition,
 } from "@/features/recording/schema";
 
@@ -103,5 +104,28 @@ describe("recording schema and validation", () => {
     const compVol = createDefaultComposition();
     compVol.instruments.drums.volume = 1.5;
     expect(() => validateComposition(compVol)).toThrow("Instrument 'drums' volume must be between 0 and 1");
+  });
+});
+
+describe("migrateComposition (pre-9-instrument payloads)", () => {
+  it("backfills the violao channel and arrangement flag, then validates", () => {
+    const comp = createDefaultComposition() as unknown as Record<string, unknown>;
+    const instruments = comp.instruments as Record<string, unknown>;
+    delete instruments.violao;
+    const arrangement = comp.arrangement as { active: Record<string, unknown> };
+    delete arrangement.active.violao;
+    expect(() => validateComposition(comp)).toThrow("violao");
+    const migrated = migrateComposition(comp);
+    const out = validateComposition(migrated);
+    expect(out.instruments.violao).toEqual({ volume: 0.9, pan: 0, muted: false });
+    expect(out.arrangement.active.violao).toBe(false);
+  });
+
+  it("leaves complete payloads untouched", () => {
+    const comp = createDefaultComposition();
+    const before = JSON.stringify(comp);
+    migrateComposition(comp);
+    expect(JSON.stringify(comp)).toBe(before);
+    expect(isComposition(comp)).toBe(true);
   });
 });

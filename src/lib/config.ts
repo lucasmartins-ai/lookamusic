@@ -40,10 +40,33 @@ export const config = {
     confidenceThreshold: 0.5,
     /** Phase 2+: median smoothing window. */
     smoothingWindow: 5,
-    /** Phase 2+: hysteresis in semitones before switching candidate (absorbs vocal vibrato). */
-    hysteresisSemitones: 0.75,
+    /**
+     * Hotfix voz estável: histerese em semitons antes de trocar de candidato
+     * (absorve vibrato vocal de ±1 st; antes 0.75 picotava a melodia e a
+     * harmonia dançava junto).
+     */
+    hysteresisSemitones: 1.0,
     /** Phase 2+: minimum stable duration to emit a NoteEvent. */
     stabilityMs: 120,
+    /**
+     * Hotfix voz estável: a excursão além da histerese precisa persistir
+     * este tempo antes de trocar o candidato (oscilação breve nunca
+     * re-arma a janela; em tempo — não em frames — p/ valer em qualquer
+     * taxa de observação).
+     */
+    confirmMs: 80,
+    /**
+     * Hotfix voz estável: confirmação estendida p/ salto exato de ±12 st
+     * (erro clássico de oitava do detector; salto cantado de verdade
+     * persiste e confirma com atraso).
+     */
+    octaveConfirmMs: 200,
+    /**
+     * Hotfix voz estável: folga extra após `stabilityMs` antes de fechar a
+     * nota em silêncio (consoantes oclusivas não cortam a nota; o
+     * acompanhamento sustenta em vez de engasgar).
+     */
+    releaseExtraMs: 120,
   },
   rhythm: {
     /** Phase 5+: tempo slew limit (BPM change per second). */
@@ -167,15 +190,25 @@ export const config = {
     },
     /** Phase 6+: pitched-instrument synthesis recipes (oscillators + envelopes). */
     timbre: {
-      bass: { osc: "triangle", cutoff: 1200, attack: 0.01, release: 0.25, detune: 0, octaveGain: 0.3 },
-      piano: { osc: "triangle", cutoff: 2800, attack: 0.005, release: 0.6, detune: 0, octaveGain: 0.35 },
-      guitar: { osc: "sawtooth", cutoff: 2400, attack: 0.004, release: 0.35, detune: 0, octaveGain: 0 },
+      bass: { osc: "triangle", cutoff: 800, attack: 0.01, release: 0.35, detune: 0, octaveGain: 0.3 },
+      piano: { osc: "triangle", cutoff: 2800, attack: 0.004, release: 0.9, detune: 0, octaveGain: 0.25 },
+      guitar: { osc: "sawtooth", cutoff: 1800, attack: 0.004, release: 0.5, detune: 0, octaveGain: 0 },
       guitarElectric: { osc: "sawtooth", cutoff: 3800, attack: 0.003, release: 0.3, detune: 0, octaveGain: 0.2 },
+      /**
+       * Hotfix quarteto: violão nylon — dedilhado redondo (triangle pelo
+       * lowpass cantado, sustain médio p/ a nota se manter).
+       */
+      violao: { osc: "triangle", cutoff: 2200, attack: 0.003, release: 0.6, detune: 0, octaveGain: 0.15 },
       strings: { osc: "sawtooth", cutoff: 1800, attack: 0.45, release: 0.8, detune: 6, octaveGain: 0 },
       violin: { osc: "sawtooth", cutoff: 3200, attack: 0.08, release: 0.3, detune: 0, octaveGain: 0 },
       sax: { osc: "sawtooth", cutoff: 1300, attack: 0.06, release: 0.25, detune: 0, octaveGain: 0 },
       accordion: { osc: "square", cutoff: 2000, attack: 0.05, release: 0.4, detune: 8, octaveGain: 0 },
     },
+    /**
+     * Hotfix som limpo: energia abaixo disto = piano em half-notes
+     * sustentadas em vez de broken-chord corrido (menos notas rápidas).
+     */
+    pianoCalmEnergyBelow: 0.35,
     /** Phase 6+: bass roots sit around this MIDI octave center (C2 = 36). */
     bassRootMidi: 36,
     /** Phase 6+: guitar strum step between strings (seconds). */
@@ -184,6 +217,28 @@ export const config = {
     saxFillEnergyMin: 0.5,
     /** Phase 6+: violin doubles melody on phrase-start bars only. */
     violinDoublesPhraseStarts: true,
+    /**
+     * Phase 16+: sample packs (real sound) per instrument. The procedural
+     * `WebAudioSink` stays the automatic fallback: `useSamples` is only a
+     * *preference* — the sink still falls back to synthesis whenever the
+     * pack is absent, the download/decode fails, or |detune| exceeds
+     * `maxDetuneSt`. Guitar keeps synthesis (no license-clean pack).
+     * Weights are transfer budgets (single velocity layer, ogg/mp3).
+     */
+    samples: {
+      /** Cache API name (versioned key migrates between pack versions). */
+      cacheName: "lookamusic-sample-packs",
+      /** Bumped whenever a pack manifest changes incompatibly. */
+      cacheVersion: 1,
+      /** Max pitch correction applied via playbackRate (±st, else synth). */
+      maxDetuneSt: 2,
+      /** localStorage key for the per-instrument real/synth toggle. */
+      toggleStorageKey: "lookamusic-samples-use-real-v1",
+      piano: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
+      violao: { useSamples: true, weightBudgetBytes: 3 * 1024 * 1024, decodeBudgetMs: 1000 },
+      drums: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
+      guitar: { useSamples: false, weightBudgetBytes: 0, decodeBudgetMs: 0 },
+    },
   },
   harmony: {
     /** Phase 4+: base weights of the 6 scoring dimensions (sum = 1). */

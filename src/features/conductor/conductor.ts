@@ -5,7 +5,7 @@
  * Owns: `MusicalTransport` (bar/beat clock), `ConductorState` (central
  * MusicalState), bar harmony scheduling (via `harmony-driver.ts`, which
  * reuses the Phase 4 scorer), quantized arrangement drains, the
- * `LookaheadScheduler` fan-out to the 8 instrument engines, mixer levels,
+ * `LookaheadScheduler` fan-out to the 9 instrument engines, mixer levels,
  * manual pins (Fase 7 risco 3: pins sobrevivem ao Auto), latency tracking
  * and graceful degradation.
  *
@@ -46,6 +46,7 @@ import {
   planPiano,
   planSax,
   planStrings,
+  planViolao,
   planViolin,
   type PassageInput,
 } from "@/features/instruments/planning";
@@ -115,6 +116,7 @@ const PLAN_OF: Record<InstrumentId, (input: PassageInput, bars: number) => Music
   bass: planBass,
   piano: planPiano,
   guitar: planGuitar,
+  violao: planViolao,
   strings: planStrings,
   violin: planViolin,
   sax: planSax,

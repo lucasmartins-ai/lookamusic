@@ -146,6 +146,16 @@ describe("WAV Audio Export (Phase 12, §40)", () => {
     class MockStereoPannerNode extends MockAudioNode {
       pan = new MockAudioParam();
     }
+    class MockDynamicsCompressorNode extends MockAudioNode {
+      threshold = new MockAudioParam();
+      knee = new MockAudioParam();
+      ratio = new MockAudioParam();
+      attack = new MockAudioParam();
+      release = new MockAudioParam();
+    }
+    class MockConvolverNode extends MockAudioNode {
+      buffer: unknown = null;
+    }
     class MockAudioBuffer {
       numberOfChannels = 2;
       constructor(public length: number, public sampleRate: number) {}
@@ -174,6 +184,12 @@ describe("WAV Audio Export (Phase 12, §40)", () => {
       }
       createStereoPanner() {
         return new MockStereoPannerNode();
+      }
+      createDynamicsCompressor() {
+        return new MockDynamicsCompressorNode();
+      }
+      createConvolver() {
+        return new MockConvolverNode();
       }
       async startRendering() {
         return new MockAudioBuffer(this.length, this.sampleRate);

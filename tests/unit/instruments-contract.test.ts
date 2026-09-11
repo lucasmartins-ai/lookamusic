@@ -11,6 +11,7 @@ import { createDrumsEngine, planDrumsBar } from "@/features/instruments/drums";
 import { createBassEngine, planBassBar } from "@/features/instruments/bass";
 import { createPianoEngine, planPianoBar } from "@/features/instruments/piano";
 import { createGuitarEngine, planGuitarBar } from "@/features/instruments/guitar";
+import { createViolaoEngine, planViolaoBar } from "@/features/instruments/violao";
 import { createStringsEngine, planStringsBar } from "@/features/instruments/strings";
 import { createViolinEngine, planViolinBar } from "@/features/instruments/violin";
 import { createSaxEngine, planSaxBar } from "@/features/instruments/sax";
@@ -25,6 +26,7 @@ const ENGINES: { id: InstrumentId; factory: Factory }[] = [
   { id: "bass", factory: createBassEngine },
   { id: "piano", factory: createPianoEngine },
   { id: "guitar", factory: (s) => createGuitarEngine(s) },
+  { id: "violao", factory: createViolaoEngine },
   { id: "strings", factory: createStringsEngine },
   { id: "violin", factory: createViolinEngine },
   { id: "sax", factory: createSaxEngine },
@@ -36,6 +38,7 @@ const PLANS = {
   bass: planBassBar,
   piano: planPianoBar,
   guitar: planGuitarBar,
+  violao: planViolaoBar,
   strings: planStringsBar,
   violin: planViolinBar,
   sax: planSaxBar,
@@ -43,7 +46,7 @@ const PLANS = {
 } as const;
 
 describe("contract: interface shape", () => {
-  it("covers exactly the 8 canonical instruments", () => {
+  it("covers exactly the 9 canonical instruments", () => {
     expect(ENGINES.map((e) => e.id).sort()).toEqual([...INSTRUMENTS].sort());
   });
 

@@ -24,7 +24,7 @@ class RecEngine implements InstrumentEngine {
   setPan(): void {}
 }
 
-const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"];
+const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"];
 
 function setup() {
   const events = new EventBus();
@@ -100,12 +100,16 @@ describe("finger + swipe gestures drive energy and selection", () => {
 
   it("SWIPE_LEFT/RIGHT cycle the open/close target; OPEN follows it", () => {
     const s = setup();
-    s.conductor.applyGesture("SWIPE_RIGHT", 0); // guitar → strings
+    s.conductor.applyGesture("SWIPE_RIGHT", 0); // guitar → violao
+    expect(s.conductor.gestureSelected()).toBe("violao");
+    s.conductor.applyGesture("SWIPE_RIGHT", 0); // violao → strings
     expect(s.conductor.gestureSelected()).toBe("strings");
     s.conductor.applyGesture("OPEN_HAND", 0);
     expect(s.engines.arrangement.snapshot().active.strings).toBe(true);
-    // Quartet keeps guitar on while strings joins.
+    // Quintet keeps guitar on while strings joins.
     expect(s.engines.arrangement.snapshot().active.guitar).toBe(true);
+    s.conductor.applyGesture("SWIPE_LEFT", 0);
+    expect(s.conductor.gestureSelected()).toBe("violao");
     s.conductor.applyGesture("SWIPE_LEFT", 0);
     expect(s.conductor.gestureSelected()).toBe("guitar");
   });

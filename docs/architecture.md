@@ -67,7 +67,7 @@ CAMERA → hand landmarks → GestureRecognition → GestureEvent → Arrangemen
 | `music/harmony` | candidates, scoring, progressions, voice leading, cadence | `ChordChanged` |
 | `music/rhythm` | tempo tracking (est/target/playback), meter, drum patterns | `TempoUpdated`, `MeterChanged` |
 | `music/arrangement` | active instruments, energy, transitions on bar/phrase boundaries | `InstrumentAdded/Removed`, `EnergyChanged` |
-| `features/instruments` | `InstrumentEngine` iface + 8 instruments (Phase 6) | renders event graph |
+| `features/instruments` | `InstrumentEngine` iface + 9 instruments (Phase 6 + violão hotfix) | renders event graph |
 | `features/gestures` | landmarks → gestures w/ confidence + hysteresis (Phase 9: recognition, static/swipe classifiers, camera session, mapping, hook) | `GestureDetected` (sole producer; conductor → arrangement only) |
 | `features/recording` | structured session capture + replay (Phase 11) | `RecordingStarted/Stopped` |
 | `features/editor` | operates on `MusicalState`, never raw audio (Phase 11) | state mutations |
@@ -195,12 +195,42 @@ Strict production-grade reliability safeguards guaranteeing stationary memory gr
 ## 15. Portfolio Release Architecture (Phase 15, §50)
 
 Unified system presentation and multi-surface routing:
-
 - `/` — Instrument Landing Page: Onboarding guide, audio-health advisories, quickstart, voice melody timeline, and portfolio module directory.
 - `/session` — Live Conductor: Real-time voice-to-band orchestration, hot drum pickup, 8-instrument lineup, camera gesture conducting, live educational mode, and structured session recorder.
 - `/compose` — Studio Hub: Saved local projects catalog with metadata.
 - `/compose/[id]` — Timeline Editor: Multitrack interactive piano roll, 1/16 quantization, harmonic regenerator, and offline export modal (Standard MIDI 1.0, 16-bit stereo WAV, versioned JSON v1, WebM/Opus).
 - `/learn` — Theory Lab: Interactive computational music theory laboratory and progressive curriculum.
 - Fully offline, 100% on-device execution, zero cloud dependency, zero external audio sample copyright constraints (100% synthesized procedurally via `WebAudioSink`).
+
+## 16. Sample Instruments with Procedural Fallback (Phase 16, TDR-16)
+
+Piano → violão → bateria render real samples; the procedural `WebAudioSink`
+stays the automatic, invisible fallback (no packs, offline, fetch/decode
+failure, instrument without pack):
+
+- `features/instruments/packs/*.ts` — pack manifests as DATA
+  (`packId`, version, license, attribution, remote https `baseUrl`, note/voice
+  URL lists). Engines never contain URLs; they reference the packId only.
+- `sample-cache.ts` — `SampleCache`: pure nearest-sample mapping (nearest
+  MIDI wins, `playbackRate = 2^(st/12)` within ±`maxDetuneSt`, else synth) +
+  `fetch` → `decodeAudioData` → `AudioBuffer` into memory + Cache API
+  (PWA offline-first, versioned keys migrate). `fetch`/`decode` injectable —
+  vitest runs with fakes, zero real network. Downloads run ONLY on user
+  action (`useSamplePacks` "Baixar som real" button), never silently.
+- `sample-voice.ts` — `SampleVoice implements VoiceSink` beside
+  `WebAudioSink`: pitched notes via `AudioBufferSourceNode` + existing
+  release envelope; drums hold the membrane `tone` and play ONE one-shot on
+  the paired `noise` (reverse lookup in `config.instruments.drumVoices`, no
+  double-trigger; without a sample the original pair re-emits bit-identical).
+  Every miss delegates to the inner synth — no click, no exception, no
+  silence. `createInstrumentSink(ctx, master, id, cache)` wires
+  `config.instruments.samples.<id>.useSamples` + cache availability; the live
+  real/synth toggle is a per-note in-memory flag (instant, no graph rebuild).
+- `sample-store.ts` + `useSamplePacks.ts` — all business logic (prefs in
+  `localStorage`, progress, offline state); `SamplePackPanel` /
+  `SampleCredits` only render. SSR-first mount sync (no hydration mismatch).
+- Packs ship OUTSIDE web + Tauri bundles (runtime download only); guitar
+  keeps synthesis (no license-clean pack). Offline export (`renderToWav`)
+  stays 100% synth (deterministic) — samples in export is explicit future work.
 
 

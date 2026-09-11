@@ -109,6 +109,7 @@ export type InstrumentId =
   | "bass"
   | "piano"
   | "guitar"
+  | "violao"
   | "strings"
   | "violin"
   | "sax"
@@ -119,6 +120,7 @@ export const INSTRUMENTS: readonly InstrumentId[] = [
   "bass",
   "piano",
   "guitar",
+  "violao",
   "strings",
   "violin",
   "sax",

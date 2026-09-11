@@ -43,6 +43,87 @@ export interface VoiceSink {
   dispose(): void;
 }
 
+/**
+ * Hotfix som limpo: barramento master compartilhado (um por AudioContext).
+ * Ganho de entrada contido + compressor suave colam a banda e evitam o
+ * clipping de 9 instrumentos em 0.9; um send curto de reverb procedural
+ * (IR sintética, sem assets) tira o som "seco/plástico". Chamado só no
+ * browser (e no OfflineAudioContext do export); nunca no import.
+ */
+export interface MasterBus {
+  /** Nó de entrada: os VoiceSinks conectam aqui, não no destination. */
+  input: GainNode;
+  dispose(): void;
+}
+
+function roomImpulse(ctx: BaseAudioContext, durSec: number, decay: number): AudioBuffer {
+  const len = Math.max(1, Math.floor(ctx.sampleRate * durSec));
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+export function createMasterBus(ctx: BaseAudioContext, destination: AudioNode): MasterBus {
+  const input = ctx.createGain();
+  input.gain.value = 0.8;
+  // Ambientes sem Dynamics/Convolver (mocks, webviews antigas): som segue
+  // limpo em gain direto em vez de quebrar a banda.
+  const factory = ctx as unknown as {
+    createDynamicsCompressor?: () => DynamicsCompressorNode;
+    createConvolver?: () => ConvolverNode;
+  };
+  try {
+    const makeComp = factory.createDynamicsCompressor?.bind(ctx);
+    if (makeComp) {
+      const comp = makeComp();
+      comp.threshold.value = -18;
+      comp.knee.value = 20;
+      comp.ratio.value = 4;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.18;
+      input.connect(comp);
+      comp.connect(destination);
+    } else {
+      input.connect(destination);
+    }
+  } catch {
+    try {
+      input.connect(destination);
+    } catch {
+      // Sem saída — nunca quebra o chamador.
+    }
+  }
+  try {
+    const makeVerb = factory.createConvolver?.bind(ctx);
+    if (makeVerb) {
+      const verb = makeVerb();
+      verb.buffer = roomImpulse(ctx, 1.4, 2.2);
+      const wet = ctx.createGain();
+      wet.gain.value = 0.14;
+      input.connect(verb);
+      verb.connect(wet);
+      wet.connect(destination);
+    }
+  } catch {
+    // Sem sala, a banda segue comprimida — nunca quebra o som.
+  }
+  return {
+    input,
+    dispose: () => {
+      try {
+        input.disconnect();
+      } catch {
+        // Já desconectado.
+      }
+    },
+  };
+}
+
 function envGain(
   ctx: BaseAudioContext,
   at: number,

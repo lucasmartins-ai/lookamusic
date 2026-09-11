@@ -46,6 +46,7 @@ export class SessionRecorder {
       bass: true,
       piano: true,
       guitar: true,
+      violao: true,
       strings: false,
       violin: false,
       sax: false,

@@ -13,7 +13,7 @@ src/
     music/rhythm/         tempo tracking, meter, patterns (Ph5+)
     music/arrangement/    state, dynamics, presets + useArrangement (Ph7 OK)
     conductor/            transport, state, harmony-driver, conductor, latency, degradation, fixture + useConductor (Ph8 OK)
-    instruments/          InstrumentEngine iface + 8 instruments + scheduler/mixer (Ph6 OK, scheduler grace Ph8)
+    instruments/          InstrumentEngine iface + 9 instruments + scheduler/mixer (Ph6 OK, scheduler grace Ph8)
     gestures/             recognition (hold/cooldown/hysteresis) + landmarks (static/swipe/MediaPipe loader) + camera + mapping + useGestures (Ph9 OK)
     recording/            schema validation, IndexedDB storage, session capture, timeline editor, bit-identical replay + useRecorder (Ph11 OK)
     export/               (Ph12)

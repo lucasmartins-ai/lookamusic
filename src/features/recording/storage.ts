@@ -6,6 +6,7 @@
 import { config } from "@/lib/config";
 import type { Composition } from "@/domain/types";
 import { validateComposition } from "./schema";
+import { migrateComposition } from "./schema";
 
 export interface CompositionSummary {
   id: string;
@@ -73,7 +74,7 @@ export async function saveComposition(comp: Composition): Promise<void> {
 export async function loadComposition(id: string): Promise<Composition | null> {
   if (!hasIndexedDB()) {
     const found = memoryStore.get(id);
-    return found ? validateComposition(JSON.parse(JSON.stringify(found))) : null;
+    return found ? validateComposition(migrateComposition(JSON.parse(JSON.stringify(found)))) : null;
   }
 
   const db = await openDB();
@@ -87,7 +88,7 @@ export async function loadComposition(id: string): Promise<Composition | null> {
         resolve(null);
       } else {
         try {
-          resolve(validateComposition(req.result));
+          resolve(validateComposition(migrateComposition(req.result)));
         } catch (err) {
           reject(err);
         }

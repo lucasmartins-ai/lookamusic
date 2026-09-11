@@ -11,6 +11,7 @@ import { createDrumsEngine } from "./drums";
 import { createBassEngine } from "./bass";
 import { createPianoEngine } from "./piano";
 import { createGuitarEngine } from "./guitar";
+import { createViolaoEngine } from "./violao";
 import { createStringsEngine } from "./strings";
 import { createViolinEngine } from "./violin";
 import { createSaxEngine } from "./sax";
@@ -21,6 +22,7 @@ const REGISTRY = new Map<string, EngineFactory>([
   ["bass", createBassEngine],
   ["piano", createPianoEngine],
   ["guitar", (sink) => createGuitarEngine(sink)],
+  ["violao", createViolaoEngine],
   ["strings", createStringsEngine],
   ["violin", createViolinEngine],
   ["sax", createSaxEngine],
@@ -42,7 +44,7 @@ export function registeredIds(): string[] {
   return [...REGISTRY.keys()];
 }
 
-/** The eight canonical ids, in band order. */
+/** The nine canonical ids, in band order. */
 export function canonicalIds(): readonly string[] {
   return INSTRUMENTS;
 }

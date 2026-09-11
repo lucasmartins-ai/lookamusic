@@ -5,7 +5,7 @@
 
 [![Build](https://img.shields.io/badge/Next.js-16_Turbopack-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6_Strict-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-595_Unit_%7C_10_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-647_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
@@ -157,7 +157,7 @@ npm run desktop:dist:linux   # Gera instalador Linux
 | Rota | Descrição | Destaques Técnicos |
 |---|---|---|
 | [`/`](src/app/page.tsx) | **Início & Sintonizador Analógico** | Onboarding guiado, medidor VU retro, sintonizador dial, visualizador de pitch e status de áudio. |
-| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. |
+| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. Seção **SOM REAL (SAMPLES)**: piano/violão/bateria com som real via packs opt-in (toggle instantâneo real/sintetizador, download só com o seu toque, créditos CC-BY na tela). |
 | [`/compose`](src/app/compose/page.tsx) | **Catálogo de Gravações** | Gerenciador de projetos locais salvos no IndexedDB, com visualização de tom, BPM e duração. |
 | [`/compose/editor?id=`](src/app/compose/editor/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. (`/compose/[id]` segue na web.) |
 | [`/learn`](src/app/learn/page.tsx) | **Laboratório de Teoria** | Pedagogia musical progressiva em 9 níveis (intervalos, tríades, condução de vozes e cadências) com zero LLM. |
@@ -189,7 +189,7 @@ flowchart TD
     subgraph SYNTHESIS ["3. Síntese Procedural & Agendamento"]
         ARR --> SCHED["Lookahead Scheduler\n(Tick de 25ms / Horizonte de 120ms)"]
         SCHED --> ENGINES["8 Instrumentos Procedurais\n(Bateria, Baixo, Piano, Guitarra, Cordas, Violino, Sax, Acordeom)"]
-        ENGINES --> SINK["WebAudioSink (Osciladores e Ruído)\nZero samples externos"]
+        ENGINES --> SINK["Voz Híbrida por Instrumento\n(Samples reais piano/violão/bateria\nquando o pack opt-in existe +\nfallback procedural WebAudioSink)"]
         SINK --> AUDIO_OUT["Saída Estéreo de Hardware"]
     end
 
@@ -231,13 +231,13 @@ Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vit
 O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Executar todos os testes unitários e benchmarks DSP (595 testes em 72 arquivos)
+# Executar todos os testes unitários e benchmarks DSP (647 testes em 75 arquivos)
 npm test
 
 # Executar checagem estrita de tipos TypeScript (zero erros)
 npm run typecheck
 
-# Executar automação de testes E2E com Playwright
+# Executar automação de testes E2E com Playwright (11 testes; 10 verdes + 1 falha pré-existente documentada no CHANGELOG)
 npm run test:e2e
 
 # Executar build otimizado de produção
@@ -249,6 +249,7 @@ npm run build
 ## 🔒 Privacidade Garantida
 
 - **Sem Transmissão de Áudio ou Vídeo:** Áudio do microfone e vídeo da câmera **nunca saem do seu dispositivo**.
+- **Samples Opcionais com Consentimento:** Piano/violão/bateria podem usar som real via packs baixados **somente quando você toca em "BAIXAR SOM REAL"** (`/session` → SOM REAL); por padrão tudo é síntese procedural local. Packs ficam no navegador (memória + Cache API) e continuam offline.
 - **Sem Rastreamento ou Cookies de Terceiros:** Sessões, gravações e preferências ficam salvos estritamente no `IndexedDB` e `localStorage` do seu navegador/desktop.
 - **Zero Dependência de Nuvem:** Toda a inteligência musical opera no hardware do cliente.
 - Documento completo em: [`PRIVACY.md`](PRIVACY.md).
@@ -269,4 +270,5 @@ npm run build
 ## ⚖️ Licença e Propriedade Intelectual
 
 - **Código-Fonte:** [Licença MIT](LICENSE).
-- **Design de Som Procedural:** 100% sintetizado proceduralmente em Web Audio (`WebAudioSink`). Não utiliza bancos de som proprietários, loops protegidos por direitos autorais ou samples externos.
+- **Design de Som Procedural:** 100% sintetizado proceduralmente em Web Audio (`WebAudioSink`). Não utiliza bancos de som proprietários, loops protegidos por direitos autorais ou samples externos — este é o som padrão e o fallback permanente.
+- **Samples Reais (opt-in, fora do bundle):** Piano — Salamander Grand Piano por Alexander Holmberg, **CC-BY 3.0**; Violão — FreePats Spanish Classical Guitar, **CC0**; Bateria — Salamander Drumkit por Alexander Holmberg, **CC-BY-SA 3.0** (pack opcional em runtime, nunca embutido). Créditos com links na tela em `/session` → SOM REAL. Guitarra segue 100% sintetizada (sem pack com licença compatível nesta fase).

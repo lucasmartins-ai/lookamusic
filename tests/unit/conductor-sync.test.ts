@@ -25,7 +25,7 @@ class RecEngine implements InstrumentEngine {
   setPan(): void {}
 }
 
-const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "strings", "violin", "sax", "accordion"];
+const IDS: InstrumentId[] = ["drums", "bass", "piano", "guitar", "violao", "strings", "violin", "sax", "accordion"];
 
 function setup() {
   const events = new EventBus();

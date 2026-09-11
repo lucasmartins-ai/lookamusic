@@ -25,7 +25,7 @@ they are never recorded, uploaded, persisted, or sent anywhere.
 ## What leaves the device
 
 **Nothing, by default.** There is no server receiving audio, video, notes
-or usage data in Phases 1–15. Specifically:
+or usage data in Phases 1–16. Specifically:
 
 | Data | Where it goes |
 |---|---|
@@ -48,6 +48,29 @@ Session capture/replay stores **structured musical data locally**
 inside the app (`/compose`), or clear site data in the browser settings
 (Chrome: Settings → Privacy → Delete browsing data → hosted app data).
 There is no server copy to request — because none exists.
+
+## Real instrument sound — optional sample packs (Phase 16)
+
+Piano, violão and drums can sound like real recorded instruments instead of
+the built-in procedural synthesis. This works as follows, with no change to
+the guarantees above:
+
+- **100% on-device after an opt-in download.** By default nothing is
+  downloaded and everything sounds exactly as before (procedural synthesis).
+  Real sounds arrive **only when you tap "BAIXAR SOM REAL"** for an
+  instrument in `/session` → SOM REAL (SAMPLES) — never automatically,
+  never silently.
+- **What is downloaded:** only compressed audio one-shots/notes from the
+  hosts documented in the pack manifests and the in-app credits screen
+  (Salamander piano/drums, FreePats guitar). No microphone audio, no usage
+  data and no identifier is sent — these are plain file downloads, and a
+  failed/blocked download simply keeps the procedural sound.
+- **Where packs live:** decoded in memory + the browser `Cache API` on this
+  device (PWA offline-first: downloaded packs keep playing offline). Clear
+  site data to remove them. Nothing is uploaded anywhere, ever.
+- **Per-instrument choice:** the "Som real / Sintetizador" toggle (default:
+  real when the pack exists) applies instantly and is stored in
+  `localStorage` on this browser only.
 
 ## If you deny permission
 

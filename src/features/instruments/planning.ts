@@ -169,11 +169,26 @@ export function planPiano(input: PassageInput, bars: number): MusicalEvent[] {
   const out: MusicalEvent[] = [];
   const barQ = barQuarters(input.meter);
   const spq = secPerQuarter(input.bpm);
+  // Hotfix ritmo calmo: em baixa energia o piano segura o acorde em
+  // half-notes simultâneas (2 ataques por compasso) em vez do
+  // broken-chord corrido — menos notas rápidas, mais sustain.
+  const calm = clamp01(input.energy01) < config.instruments.pianoCalmEnergyBelow;
   for (let bar = 0; bar < bars; bar++) {
     const chord = chordAt(input, bar);
     const [v0, v1, v2] = voicingCandidates(chord)[0] ?? [48, 52, 55];
     const voices = [v0, v1, v2];
     const start = barStartSec(input, bar);
+    if (calm && barQ >= 2) {
+      const half = barQ / 2;
+      for (const hb of [0, half]) {
+        for (const midi of voices) {
+          out.push(
+            note("piano", bar, hb, midi, start + hb * spq, half * spq * 0.95, vel(0.6, input.energy01)),
+          );
+        }
+      }
+      continue;
+    }
     for (let q = 0; q < Math.floor(barQ); q++) {
       const midi = voices[q % 3];
       out.push(
@@ -297,6 +312,44 @@ export function planSax(input: PassageInput, bars: number): MusicalEvent[] {
       );
     });
   }
+  return out;
+}
+
+/** Violão nylon: dedilhado fingerpick (baixo + arpejo), sem strum duplo. */
+function violaoMidis(chord: Chord): number[] {
+  const tones = chordTones(chord);
+  const base = 45 + (((chord.root - (45 % 12)) % 12) + 12) % 12;
+  const midis = tones.map((pc) => {
+    const delta = (((pc - (base % 12)) % 12) + 12) % 12;
+    return base + delta;
+  });
+  midis.sort((a, b) => a - b);
+  while (midis.length < 4) midis.push(midis[0] + 12);
+  return midis.slice(0, 4);
+}
+
+export function planViolao(input: PassageInput, bars: number): MusicalEvent[] {
+  const out: MusicalEvent[] = [];
+  const barQ = barQuarters(input.meter);
+  const spq = secPerQuarter(input.bpm);
+  // Dedilhado P–I–M–A–M–I; calmo em semínimas, cheio em colcheias.
+  const busy = clamp01(input.energy01) >= 0.6;
+  const pick = busy ? [0, 1, 2, 3, 2, 1, 2, 3] : [0, 1, 2, 3];
+  for (let bar = 0; bar < bars; bar++) {
+    const strings = violaoMidis(chordAt(input, bar));
+    const start = barStartSec(input, bar);
+    const steps = busy ? Math.floor(barQ * 2) : Math.floor(barQ);
+    for (let s = 0; s < steps; s++) {
+      const beat = busy ? s * 0.5 : s;
+      if (beat >= barQ) break;
+      const midi = strings[pick[s % pick.length] % strings.length];
+      const durQ = busy ? 0.5 : 1;
+      out.push(
+        note("violao", bar, beat, midi, start + beat * spq, durQ * spq * 0.9, vel(0.62, input.energy01)),
+      );
+    }
+  }
+  out.sort((a, b) => a.bar - b.bar || a.beat - b.beat);
   return out;
 }
 

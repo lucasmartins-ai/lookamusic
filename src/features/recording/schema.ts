@@ -251,6 +251,34 @@ export function isComposition(data: unknown): data is Composition {
   }
 }
 
+/**
+ * Hotfix quarteto: preenche canais/flags do violão em composições salvas
+ * antes do 9º instrumento (nunca altera o que já existe — composição
+ * antiga continua soando igual, com o violão desligado). A validação
+ * pura segue estrita; a migração acontece só na carga.
+ */
+export function migrateComposition(data: unknown): unknown {
+  if (!data || typeof data !== "object") return data;
+  const c = data as Record<string, unknown>;
+  const instruments = c.instruments as Record<string, unknown> | undefined;
+  if (instruments && typeof instruments === "object") {
+    for (const inst of INSTRUMENTS) {
+      if (instruments[inst] === undefined || typeof instruments[inst] !== "object") {
+        instruments[inst] = { volume: 0.9, pan: 0, muted: false };
+      }
+    }
+  }
+  const arrangement = c.arrangement as
+    | { active?: Record<string, unknown> }
+    | undefined;
+  if (arrangement && typeof arrangement === "object" && arrangement.active) {
+    for (const inst of INSTRUMENTS) {
+      if (arrangement.active[inst] === undefined) arrangement.active[inst] = false;
+    }
+  }
+  return data;
+}
+
 export function createDefaultComposition(partial?: Partial<Composition>): Composition {
   const now = new Date().toISOString();
   const defaultInstruments = {} as Record<
@@ -263,7 +291,12 @@ export function createDefaultComposition(partial?: Partial<Composition>): Compos
 
   const defaultActive = {} as Record<InstrumentId, boolean>;
   for (const inst of INSTRUMENTS) {
-    defaultActive[inst] = inst === "drums" || inst === "bass" || inst === "piano";
+    defaultActive[inst] =
+      inst === "drums" ||
+      inst === "bass" ||
+      inst === "piano" ||
+      inst === "guitar" ||
+      inst === "violao";
   }
 
   return {
