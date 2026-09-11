@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "LookaMusic",
   "version": "1.2.0",
-  "identifier": "com.lookamusic.app",
+  "identifier": "com.lookamusic.desktop",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
