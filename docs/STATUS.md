@@ -5,6 +5,7 @@
 
 - **Fase atual:** Fase 16 — Instrumentos por samples (sintetizador vira fallback) — OK
 - **Hotfix pós-16 (pedido do usuário):** Cantarolar Primeiro como fluxo padrão + estabilização adaptativa + descoberta de samples — OK (666/666 testes, typecheck 0, build verde; ver CHANGELOG)
+- **Correções v1.3.2 (pedido do usuário):** Cantarolar Primeiro agora inicia o conductor (captura de notas funcionava zero) e os packs de som real foram repontados para fontes reais (todas as URLs antigas eram 404) — OK (668/668 testes, downloads verificados na UI, ver CHANGELOG)
 - **Próxima fase:** a definir — Fase 17 ainda sem prompt em `docs/prompts/` (não executar nada novo sem prompt)
 
 ## Todo-list das fases (só marque OK com o gate do AGENTS.md §3 verde)

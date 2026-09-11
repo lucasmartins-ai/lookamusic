@@ -62,7 +62,8 @@ the guarantees above:
   never silently.
 - **What is downloaded:** only compressed audio one-shots/notes from the
   hosts documented in the pack manifests and the in-app credits screen
-  (Salamander piano/drums, FreePats guitar). No microphone audio, no usage
+  (Salamander piano, via the tonejs audio mirror; FreePats nylon guitar and
+  percussion). No microphone audio, no usage
   data and no identifier is sent — these are plain file downloads, and a
   failed/blocked download simply keeps the procedural sound.
 - **Where packs live:** decoded in memory + the browser `Cache API` on this

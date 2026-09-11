@@ -1,6 +1,7 @@
 /**
- * SampleCredits — renders only (Phase 16). CC-BY attribution screen:
- * Salamander Grand Piano + Drumkit (Alexander Holmberg) + FreePats guitar.
+ * SampleCredits — renders only (Phase 16/17). Attribution screen:
+ * Salamander Grand Piano (Alexander Holmberg, CC-BY-3.0) + FreePats
+ * Spanish Classical Guitar and Synthesizer Percussion (CC0).
  */
 export function SampleCredits() {
   return (
@@ -9,9 +10,9 @@ export function SampleCredits() {
       <ul>
         <li>
           <strong>Piano:</strong> Salamander Grand Piano (Yamaha C5) por Alexander Holmberg —
-          licença <strong>CC-BY 3.0</strong>. Fonte:{" "}
-          <a href="https://tambien.github.io/Piano/Salamander/" target="_blank" rel="noreferrer">
-            tambien.github.io/Piano/Salamander
+          licença <strong>CC-BY 3.0</strong>. Áudio servido por{" "}
+          <a href="https://tonejs.github.io/audio/salamander/" target="_blank" rel="noreferrer">
+            tonejs.github.io/audio/salamander
           </a>{" "}
           · original em{" "}
           <a href="http://freepats.zenvoid.org/Piano/salamander-grand-piano.html" target="_blank" rel="noreferrer">
@@ -28,10 +29,10 @@ export function SampleCredits() {
           .
         </li>
         <li>
-          <strong>Bateria:</strong> Salamander Drumkit por Alexander Holmberg — licença{" "}
-          <strong>CC-BY-SA 3.0</strong> (pack opcional em runtime, nunca no bundle). Fonte:{" "}
-          <a href="https://archive.org/details/SalamanderDrumkit" target="_blank" rel="noreferrer">
-            archive.org/details/SalamanderDrumkit
+          <strong>Bateria:</strong> FreePats Synthesizer Percussion — domínio público{" "}
+          <strong>CC0</strong> (pack opcional em runtime, nunca no bundle). Fonte:{" "}
+          <a href="https://github.com/freepats/synthesizer-percussion" target="_blank" rel="noreferrer">
+            github.com/freepats/synthesizer-percussion
           </a>
           .
         </li>

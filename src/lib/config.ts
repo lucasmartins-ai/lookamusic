@@ -270,8 +270,12 @@ export const config = {
     samples: {
       /** Cache API name (versioned key migrates between pack versions). */
       cacheName: "lookamusic-sample-packs",
-      /** Bumped whenever a pack manifest changes incompatibly. */
-      cacheVersion: 1,
+      /**
+       * Bumped whenever a pack manifest changes incompatibly. v2 = caminhos
+       * reais (tonejs/Salamander + FreePats CC0); descarta o cache da v1, que
+       * apontava para URLs inexistentes.
+       */
+      cacheVersion: 2,
       /**
        * Fase 17: chave p/ lembrar que o usuário já viu a sugestão de packs
        * logo depois de ligar o microfone (banner não-intrusivo, uma vez só).
@@ -282,7 +286,9 @@ export const config = {
       /** localStorage key for the per-instrument real/synth toggle. */
       toggleStorageKey: "lookamusic-samples-use-real-v1",
       piano: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
-      violao: { useSamples: true, weightBudgetBytes: 3 * 1024 * 1024, decodeBudgetMs: 1000 },
+      // Violão upstream é FLAC lossless (FreePats CC0) — ~3,8 MB reais; o teto
+      // foi elevado de 3 MB para caber o pack de verdade.
+      violao: { useSamples: true, weightBudgetBytes: 5 * 1024 * 1024, decodeBudgetMs: 1500 },
       drums: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
       guitar: { useSamples: false, weightBudgetBytes: 0, decodeBudgetMs: 0 },
     },

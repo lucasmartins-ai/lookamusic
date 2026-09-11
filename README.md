@@ -5,7 +5,7 @@
 
 [![Build](https://img.shields.io/badge/Next.js-16_Turbopack-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6_Strict-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-666_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-668_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
@@ -13,6 +13,12 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
+
+## 📢 Release v1.3.2 — Correções: Cantarolar Primeiro toca a banda & som real baixa de verdade
+
+- **"TOCAR A BANDA" agora toca.** O fluxo de cantarolar abria o microfone, mas o `Conductor` continuava parado e descartava toda observação de pitch (0 notas captadas → sem música). Agora ele é iniciado junto com a captura e a banda reativa fica muda durante o cantarolar.
+- **Download de som real funcionando.** As URLs dos packs estavam todas 404; foram trocadas por fontes reais com CORS e licença limpa: Salamander piano (CC-BY-3.0) e FreePats violão/bateria (CC0). Cache bumpado para v2 para descartar o cache quebrado.
+- Atualize pelo app: **BUSCAR ATUALIZAÇÃO → ATUALIZAR PARA v1.3.2**.
 
 ## 📢 Release v1.3.1 — Cantarolar Primeiro como padrão, voz estável e samples descobríveis
 
@@ -239,7 +245,7 @@ Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vit
 O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Executar todos os testes unitários e benchmarks DSP (666 testes em 78 arquivos)
+# Executar todos os testes unitários e benchmarks DSP (668 testes em 78 arquivos)
 npm test
 
 # Executar checagem estrita de tipos TypeScript (zero erros)
@@ -279,4 +285,4 @@ npm run build
 
 - **Código-Fonte:** [Licença MIT](LICENSE).
 - **Design de Som Procedural:** 100% sintetizado proceduralmente em Web Audio (`WebAudioSink`). Não utiliza bancos de som proprietários, loops protegidos por direitos autorais ou samples externos — este é o som padrão e o fallback permanente.
-- **Samples Reais (opt-in, fora do bundle):** Piano — Salamander Grand Piano por Alexander Holmberg, **CC-BY 3.0**; Violão — FreePats Spanish Classical Guitar, **CC0**; Bateria — Salamander Drumkit por Alexander Holmberg, **CC-BY-SA 3.0** (pack opcional em runtime, nunca embutido). Créditos com links na tela em `/session` → SOM REAL. Guitarra segue 100% sintetizada (sem pack com licença compatível nesta fase).
+- **Samples Reais (opt-in, fora do bundle):** Piano — Salamander Grand Piano por Alexander Holmberg, **CC-BY 3.0** (~1,9 MB mp3, servido por `tonejs.github.io/audio/salamander`); Violão — FreePats Spanish Classical Guitar, **CC0** (~3,8 MB FLAC do `freepats/spanish-classical-guitar`); Bateria — FreePats Synthesizer Percussion, **CC0** (~0,6 MB FLAC do `freepats/synthesizer-percussion`). Packs opcionais em runtime, **nunca embutidos**, todos com CORS liberado; créditos com links na tela em `/session` → SOM REAL. Guitarra segue 100% sintetizada (sem pack com licença compatível nesta fase).

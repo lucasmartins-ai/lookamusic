@@ -176,10 +176,18 @@ describe("manifest: full range coverage", () => {
     expect(v.ok).toBe(true);
   });
 
-  it("violão 40–88 every note within ±2st", () => {
+  it("violão (declared range) every note within ±2st", () => {
     const v = validatePitchedManifest(VIOLAO_PACK);
     expect(v.gaps).toEqual([]);
     expect(v.ok).toBe(true);
+  });
+
+  it("violão real grid: neighbour gaps ≤ 2 st (honest ±2st retune budget)", () => {
+    const midis = VIOLAO_PACK.notes.map((n) => n.midi).sort((a, b) => a - b);
+    expect(midis.length).toBeGreaterThan(20);
+    for (let i = 1; i < midis.length; i++) {
+      expect(midis[i] - midis[i - 1]).toBeLessThanOrEqual(2);
+    }
   });
 
   it("sparse pack reports exact gaps", () => {
@@ -455,7 +463,7 @@ describe("weights: transfer budgets respected", () => {
     expect(PIANO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("piano"));
     expect(weightBudgetOf("piano")).toBe(2 * 1024 * 1024);
     expect(VIOLAO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("violao"));
-    expect(weightBudgetOf("violao")).toBe(3 * 1024 * 1024);
+    expect(weightBudgetOf("violao")).toBe(5 * 1024 * 1024);
     expect(DRUMS_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("drums"));
     expect(weightBudgetOf("drums")).toBe(2 * 1024 * 1024);
   });
@@ -468,6 +476,23 @@ describe("weights: transfer budgets respected", () => {
     ];
     expect(urls.length).toBeGreaterThan(0);
     for (const u of urls) expect(u.startsWith("https://")).toBe(true);
+  });
+
+  it("every pack URL is fetch-safe (no raw '#' fragment, no spaces, decodable)", () => {
+    // Regression: a raw `#` truncates the path (FreePats ships `C#2.flac`),
+    // which made every download 404. Sharps must be percent-encoded.
+    const urls = [
+      ...PIANO_PACK.notes.map((n) => n.url),
+      ...VIOLAO_PACK.notes.map((n) => n.url),
+      ...DRUMS_PACK.voices.map((v) => v.url),
+    ];
+    for (const u of urls) {
+      expect(u).not.toContain("#");
+      expect(u).not.toContain(" ");
+      expect(() => decodeURIComponent(u)).not.toThrow();
+    }
+    // The guitar pack genuinely contains encoded sharps.
+    expect(VIOLAO_PACK.notes.some((n) => n.url.includes("%23"))).toBe(true);
   });
 
   it("guitar keeps synthesis (no pack, flag off)", () => {

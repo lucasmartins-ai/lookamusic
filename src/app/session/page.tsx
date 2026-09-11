@@ -133,10 +133,17 @@ function SessionBody() {
 
   const startHum = async () => {
     setHumMsg(null);
+    // Silence the band BEFORE starting the conductor (the mixer state is
+    // applied to the real audio graph as soon as ensureAudio() runs below).
+    muteConductorBand();
+    // CRITICAL: the conductor is created stopped, and pushObservation()
+    // early-returns while stopped — without this the hummed melody is never
+    // captured and "TOCAR A BANDA" has nothing to build a song from.
+    // The band stays muted, so no reactive audio is heard during capture.
+    cond.start();
     if (mic.status !== "running") {
       await mic.start();
     }
-    muteConductorBand();
     setPlayComp(null);
     setPlayhead(0);
     setHumPhase("humming");
@@ -155,6 +162,10 @@ function SessionBody() {
   };
 
   const stopHumAndPlay = () => {
+    // Defensive: if the conductor was somehow stopped (e.g. the user pressed
+    // STOP while humming), capture cannot have worked — restart it so the next
+    // attempt records notes instead of silently producing an empty song.
+    if (!cond.isRunning) cond.start();
     const comp = buildPlayAlongComposition(cond.getMusicalState(), "Cantarolada");
     if (!comp) {
       setHumMsg("Cante primeiro alguns segundos — nenhuma nota estável captada ainda.");

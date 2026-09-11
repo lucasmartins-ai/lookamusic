@@ -4,6 +4,48 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.3.2 — Correções: Cantarolar Primeiro não tocava a banda + downloads de som real 404] — OK
+
+Dois bugs relatados pelo usuário, ambos reproduzidos e corrigidos com
+verificação real (não só unitária):
+
+- **"TOCAR A BANDA" não tocava nada depois de cantarolar.** Causa: o
+  `Conductor` nasce **parado** (`useConductor` chama `stop()` na criação) e
+  `Conductor.pushObservation()` faz `return` cedo enquanto `stopped` — então
+  o fluxo de cantarolar ligava só o microfone e **nenhuma nota era captada**
+  (`0 notas captadas` para sempre → `buildPlayAlongComposition()` devolvia
+  `null`). O caminho do fixture funcionava porque ele chama `cond.start()`.
+  Fix em `session/page.tsx`: `startHum()` agora **muta a banda e dá
+  `cond.start()` antes** de abrir o mic (captura acontece, banda fica muda),
+  e `stopHumAndPlay()` re-ativa o conductor se ele tiver sido parado no meio.
+  Verificado na prática: mic sintético (WAV A4→C5) → 1 nota captada, transport
+  "1 notes · 7 scheduled" → **"Tocando em loop (1.9s)"**.
+- **Downloads de som real não funcionavam.** Causa: **todas as URLs dos três
+  manifests retornavam 404** (arquivos inexistentes/renomeados nos hosts).
+  Packs reescritos para fontes **reais, com CORS liberado e licença
+  compatível**, todas validadas por `HEAD` + `decodeAudioData`:
+  - Piano — Salamander Grand Piano **CC-BY-3.0** via
+    `tonejs.github.io/audio/salamander` (30 mp3, grade de 3ª menor 21–108,
+    nomes com `s` para sustenidos, ~1,9 MB);
+  - Violão — FreePats Spanish Classical Guitar **CC0** via
+    `raw.githubusercontent.com/freepats/spanish-classical-guitar` (48 FLAC
+    reais G1–C6, **`#` percent-encoded** — `C#2.flac` truncava a URL e dava
+    404, ~3,8 MB);
+  - Bateria — FreePats Synthesizer Percussion **CC0** via
+    `raw.githubusercontent.com/freepats/synthesizer-percussion` (9 one-shots
+    FLAC; vozes sem sample, ex. cajon, caem no sintetizador).
+  `cacheVersion` 1→2 (descarta o cache que apontava para URLs quebradas);
+  orçamento do violão 3→5 MB (FLAC lossless real); créditos de tela,
+  README e PRIVACY atualizados (bateria deixou de ser Salamander
+  CC-BY-SA e passou a ser FreePats CC0). Verificado na UI real: downloads
+  concluídos em 1,9 s (bateria), 1,4 s (piano) e 12,4 s (violão), com
+  `PAGE ERRORS: []`.
+- **Regressão coberta**: novo teste "every pack URL is fetch-safe" (sem `#`
+  cru, sem espaços, percent-encoding decodificável) + teste da grade real do
+  violão (saltos ≤ 2 st).
+- **Verificação (Portão AGENTS.md §3)**: `npm test` **668/668 verdes**
+  (78 arquivos; +2); `npm run typecheck` **0 erros**; `npm run build` verde.
+
 ## [v1.3.1 — Cantarolar Primeiro padrão + estabilização adaptativa + samples descobríveis] — OK
 
 - **Fluxo padrão (`/session`)**: a seção **CANTAROLAR PRIMEIRO** vira a
