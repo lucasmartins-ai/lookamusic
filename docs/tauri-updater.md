@@ -67,3 +67,30 @@ Gotchas:
 - CI secret needed: `TAURI_SIGNING_PRIVATE_KEY` = key content.
 - Lose the private key → old installs can never verify a new key;
   generate once, back it up.
+
+## Applying an update by hand (recovery / rollback)
+
+When **BUSCAR ATUALIZAÇÃO** is not reachable (or you want to roll back), the
+signed updater artifact can be swapped in manually. This is exactly what the
+updater does — just outside the app. Never share the `~/.tauri` key to do it;
+the artifact is public.
+
+macOS (Apple Silicon → `aarch64`; Intel → `x64`):
+
+```sh
+TMP=$(mktemp -d)
+curl -fsSL -o "$TMP/app.tar.gz" \
+  https://github.com/lucasmartins-ai/lookamusic/releases/latest/download/LookaMusic_aarch64.app.tar.gz
+tar -xzf "$TMP/app.tar.gz" -C "$TMP"
+# Confirm the version before touching anything:
+defaults read "$TMP/LookaMusic.app/Contents/Info.plist" CFBundleShortVersionString
+# Replace with a backup of the previous bundle:
+mv /Applications/LookaMusic.app /tmp/LookaMusic-backup.app
+ditto "$TMP/LookaMusic.app" /Applications/LookaMusic.app
+xattr -dr com.apple.quarantine /Applications/LookaMusic.app
+```
+
+Note: macOS builds are ad-hoc signed, so `codesign --verify` reports
+`code has no resources but signature indicates they must be present` even on a
+healthy bundle (the same warning appears on previous releases). Launch once to
+confirm; the app window opening is the real check.
