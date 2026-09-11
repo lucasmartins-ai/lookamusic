@@ -4,6 +4,7 @@
  * TimelineEditor — visual timeline, note roll, chords, and mixer (Phase 11, §41).
  * Pure presentation + interaction: dispatches actions to editor.ts functions.
  * Operates purely on MusicalState/Composition, never modifies audio destructively.
+ * Audio feedback on note selection/pitch changes, live playhead indicator, SVG icons.
  */
 import { useMemo, useState } from "react";
 import {
@@ -13,7 +14,6 @@ import {
   type Composition,
   type InstrumentId,
   type MidiNote,
-  type NoteEvent,
 } from "@/domain/types";
 import {
   addNote,
@@ -29,6 +29,13 @@ import {
   toggleInstrumentMute,
 } from "@/features/recording/editor";
 import { midiToNoteName } from "@/features/pitch/conversions";
+import {
+  SaveIcon,
+  PlusIcon,
+  SlidersIcon,
+  LightningIcon,
+  TrashIcon,
+} from "@/components/icons";
 
 const PITCH_CLASSES = [
   "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -51,6 +58,9 @@ interface TimelineEditorProps {
   onChange: (updated: Composition) => void;
   onSave?: () => void;
   isSaving?: boolean;
+  onPreviewNote?: (midi: number) => void;
+  playheadSec?: number;
+  isPlaying?: boolean;
 }
 
 export function TimelineEditor({
@@ -58,6 +68,9 @@ export function TimelineEditor({
   onChange,
   onSave,
   isSaving = false,
+  onPreviewNote,
+  playheadSec = 0,
+  isPlaying = false,
 }: TimelineEditorProps) {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [quantizeGrid, setQuantizeGrid] = useState<number>(0.5);
@@ -84,6 +97,18 @@ export function TimelineEditor({
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
+  const handleSelectNote = (id: string) => {
+    if (selectedNoteId === id) {
+      setSelectedNoteId(null);
+    } else {
+      setSelectedNoteId(id);
+      const note = composition.melody.find((n) => n.id === id);
+      if (note && onPreviewNote) {
+        onPreviewNote(note.midi);
+      }
+    }
+  };
+
   const handleMoveNote = (deltaSec: number) => {
     if (!selectedNote) return;
     const newStart = Math.max(0, selectedNote.startTime + deltaSec);
@@ -96,6 +121,9 @@ export function TimelineEditor({
     const newMidi = (selectedNote.midi + deltaSemitones) as MidiNote;
     const updated = changeNotePitch(composition, selectedNote.id, newMidi);
     onChange(updated);
+    if (onPreviewNote) {
+      onPreviewNote(newMidi);
+    }
   };
 
   const handleChangeDuration = (deltaSec: number) => {
@@ -116,9 +144,10 @@ export function TimelineEditor({
   const handleAddNote = () => {
     const lastNote = composition.melody[composition.melody.length - 1];
     const newStart = lastNote ? lastNote.startTime + lastNote.duration + 0.25 : 0;
+    const newMidi = 60;
     const updated = addNote(composition, {
       pitch: 261.63,
-      midi: 60,
+      midi: newMidi,
       startTime: newStart,
       duration: 0.5,
       velocity: 0.8,
@@ -126,6 +155,9 @@ export function TimelineEditor({
       source: "edited",
     });
     onChange(updated);
+    if (onPreviewNote) {
+      onPreviewNote(newMidi);
+    }
     notify("Nova nota adicionada.");
   };
 
@@ -198,7 +230,7 @@ export function TimelineEditor({
           </label>
           {onSave && (
             <button className="primary" onClick={onSave} disabled={isSaving} data-testid="editor-save">
-              {isSaving ? "SALVANDO…" : "💾 SALVAR PROJETO"}
+              <SaveIcon size={14} /> {isSaving ? "SALVANDO…" : "SALVAR PROJETO"}
             </button>
           )}
         </div>
@@ -210,7 +242,7 @@ export function TimelineEditor({
           <h2>MELODIA (NOTAS: {composition.melody.length})</h2>
           <div className="controls">
             <button className="ghost" onClick={handleAddNote} data-testid="btn-add-note">
-              + ADICIONAR NOTA
+              <PlusIcon size={14} /> ADICIONAR NOTA
             </button>
             <select
               value={quantizeGrid}
@@ -222,20 +254,19 @@ export function TimelineEditor({
               <option value={1.0}>1/4 (1.00 t)</option>
             </select>
             <button className="ghost" onClick={handleQuantize} data-testid="btn-quantize">
-              QUANTIZAR
+              <SlidersIcon size={14} /> QUANTIZAR
             </button>
           </div>
         </div>
 
         {/* Visual Note Strip */}
         <div
-          className="note-strip"
+          className="note-strip neu-well"
           role="region"
           aria-label="Visualizador de notas da melodia"
           style={{
             position: "relative",
             minHeight: "120px",
-            background: "var(--panel-2)",
             borderRadius: "6px",
             border: "1px solid var(--line)",
             overflowX: "auto",
@@ -243,6 +274,24 @@ export function TimelineEditor({
             padding: "8px 0",
           }}
         >
+          {/* Active Playhead Indicator */}
+          {isPlaying && playheadSec >= 0 && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${Math.min(100, (playheadSec / totalDuration) * 100)}%`,
+                top: 0,
+                bottom: 0,
+                width: "2px",
+                background: "#f59e0b",
+                boxShadow: "0 0 10px #f59e0b, 0 0 16px rgba(245,158,11,0.8)",
+                zIndex: 10,
+                pointerEvents: "none",
+                transition: "left 0.04s linear",
+              }}
+            />
+          )}
+
           {composition.melody.map((note) => {
             const leftPercent = (note.startTime / totalDuration) * 100;
             const widthPercent = Math.max(2, (note.duration / totalDuration) * 100);
@@ -252,7 +301,7 @@ export function TimelineEditor({
               <button
                 key={note.id}
                 type="button"
-                onClick={() => setSelectedNoteId(isSelected ? null : note.id)}
+                onClick={() => handleSelectNote(note.id)}
                 aria-pressed={isSelected}
                 aria-label={`Nota ${midiToNoteName(note.midi)}, início ${note.startTime}s, duração ${note.duration}s`}
                 data-testid={`note-block-${note.id}`}
@@ -262,12 +311,12 @@ export function TimelineEditor({
                   width: `${widthPercent}%`,
                   top: "20px",
                   height: "50px",
-                  background: isSelected ? "var(--accent)" : "var(--line)",
+                  background: isSelected ? "var(--accent)" : "linear-gradient(180deg, #2a3142 0%, #1e2330 100%)",
                   color: isSelected ? "#000" : "var(--text)",
-                  border: isSelected ? "2px solid #fff" : "1px solid var(--faint)",
+                  border: isSelected ? "2px solid #fff" : "1px solid var(--line)",
                   borderRadius: "4px",
                   fontSize: "11px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -276,7 +325,8 @@ export function TimelineEditor({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   padding: "0 4px",
-                  transition: "all 0.15s ease",
+                  boxShadow: isSelected ? "0 0 12px rgba(245,158,11,0.8)" : "var(--neu-button)",
+                  transition: "all 0.12s ease",
                 }}
               >
                 {midiToNoteName(note.midi)}
@@ -288,17 +338,15 @@ export function TimelineEditor({
         {/* Note Inspector */}
         {selectedNote && (
           <div
-            className="note-inspector"
+            className="note-inspector retro-card"
             style={{
               marginTop: "14px",
-              padding: "12px",
-              background: "var(--panel-2)",
-              borderRadius: "6px",
-              border: "1px solid var(--line)",
             }}
             data-testid="note-inspector"
           >
-            <h3>EDITAR NOTA: {midiToNoteName(selectedNote.midi)} ({selectedNote.pitch.toFixed(1)} Hz)</h3>
+            <h3 style={{ margin: "0 0 8px" }}>
+              EDITAR NOTA: {midiToNoteName(selectedNote.midi)} ({selectedNote.pitch.toFixed(1)} Hz)
+            </h3>
             <div className="controls">
               <button className="ghost" onClick={() => handleChangePitch(1)}>
                 TOM +1 ST
@@ -319,7 +367,7 @@ export function TimelineEditor({
                 ESTICAR +0.1s
               </button>
               <button className="ghost stop" onClick={handleDeleteSelectedNote} data-testid="btn-delete-note">
-                🗑 EXCLUIR NOTA
+                <TrashIcon size={14} /> EXCLUIR NOTA
               </button>
             </div>
           </div>
@@ -331,7 +379,7 @@ export function TimelineEditor({
         <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2>PROGRESSÃO DE ACORDES ({composition.chords.length} COMPASSOS)</h2>
           <button className="primary" onClick={handleRegenerateChords} data-testid="btn-regen-chords">
-            ⚡ REGENERAR ACOMPANHAMENTO
+            <LightningIcon size={14} /> REGENERAR ACOMPANHAMENTO
           </button>
         </div>
 
@@ -339,12 +387,9 @@ export function TimelineEditor({
           {composition.chords.map((ch, idx) => (
             <div
               key={ch.id}
-              className="chord-box"
+              className="chord-box retro-card"
               style={{
                 padding: "8px 12px",
-                background: "var(--panel-2)",
-                border: "1px solid var(--line)",
-                borderRadius: "6px",
                 minWidth: "120px",
               }}
             >
@@ -387,21 +432,18 @@ export function TimelineEditor({
             return (
               <div
                 key={inst}
-                className="channel-strip"
+                className="channel-strip retro-card"
                 style={{
                   padding: "10px",
-                  background: "var(--panel-2)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "6px",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ fontSize: "12px", letterSpacing: "0.1em" }}>{inst.toUpperCase()}</strong>
+                  <strong style={{ fontSize: "12px", letterSpacing: "0.1em", color: "#f59e0b" }}>{inst.toUpperCase()}</strong>
                   <button
                     className={`ghost ${ch.muted ? "stop" : ""}`}
                     onClick={() => onChange(toggleInstrumentMute(composition, inst))}
                     aria-label={`Mute ${inst}`}
-                    style={{ padding: "2px 6px", fontSize: "10px" }}
+                    style={{ padding: "2px 6px", fontSize: "10px", minHeight: "26px" }}
                   >
                     {ch.muted ? "MUTED" : "MUTE"}
                   </button>

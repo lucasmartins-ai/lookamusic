@@ -4,28 +4,48 @@
  * `/compose/[id]` — Composition Timeline Editor Route (Phase 11, §41).
  * Loads project from IndexedDB, allows editing melody, chords, tempo,
  * instrumentation and regenerating accompaniment. Bit-identical replay.
+ * Full Web Audio playback via CompositionPlayer and note auditioning.
  */
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { loadComposition, saveComposition } from "@/features/recording/storage";
 import { createDefaultComposition } from "@/features/recording/schema";
 import { TimelineEditor } from "@/components/TimelineEditor";
 import { ExportModal } from "@/components/ExportModal";
-import { reconstructSessionEvents } from "@/features/recording/replay";
+import { CompositionPlayer } from "@/features/recording/player";
+import {
+  PlayIcon,
+  StopIcon,
+  SaveIcon,
+  DownloadIcon,
+  FolderIcon,
+  ChevronLeftIcon,
+  RadioIcon,
+} from "@/components/icons";
 import type { Composition } from "@/domain/types";
 
 export default function ComposePage() {
   const params = useParams();
-  const router = useRouter();
   const id = typeof params?.id === "string" ? params.id : "";
 
   const [composition, setComposition] = useState<Composition | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playheadSec, setPlayheadSec] = useState(0);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  const playerRef = useRef<CompositionPlayer | null>(null);
+
+  useEffect(() => {
+    playerRef.current = new CompositionPlayer();
+    return () => {
+      playerRef.current?.dispose();
+      playerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -73,29 +93,43 @@ export default function ComposePage() {
   };
 
   const handleTogglePlay = () => {
-    if (!composition) return;
+    if (!composition || !playerRef.current) return;
     if (isPlaying) {
+      playerRef.current.stop();
       setIsPlaying(false);
+      setPlayheadSec(0);
       return;
     }
 
     setIsPlaying(true);
-    const events = reconstructSessionEvents(composition);
-    const maxTime = events.length > 0 ? events[events.length - 1].timeSec : 4;
+    const ok = playerRef.current.play(
+      composition,
+      (sec) => setPlayheadSec(sec),
+      () => {
+        setIsPlaying(false);
+        setPlayheadSec(0);
+      },
+    );
 
-    // Simulated replay playback timer
-    setTimeout(() => {
+    if (!ok) {
       setIsPlaying(false);
-    }, (maxTime + 1) * 1000);
+    }
+  };
+
+  const handlePreviewNote = (midi: number) => {
+    playerRef.current?.previewNote(midi);
   };
 
   if (loading) {
     return (
       <main className="stage" id="main">
         <header className="brand">
-          <h1>
-            LOOKA <span>EDITOR</span>
-          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <RadioIcon size={22} style={{ color: "var(--accent)" }} />
+            <h1>
+              LOOKA <span>EDITOR</span>
+            </h1>
+          </div>
         </header>
         <div className="notice tone-loading" role="status" style={{ marginTop: "24px" }}>
           <strong>CARREGANDO COMPOSIÇÃO…</strong>
@@ -108,9 +142,12 @@ export default function ComposePage() {
     return (
       <main className="stage" id="main">
         <header className="brand">
-          <h1>
-            LOOKA <span>EDITOR</span>
-          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <RadioIcon size={22} style={{ color: "var(--accent)" }} />
+            <h1>
+              LOOKA <span>EDITOR</span>
+            </h1>
+          </div>
         </header>
         <div className="notice tone-error" role="alert" style={{ marginTop: "24px" }}>
           <strong>COMPOSIÇÃO NÃO ENCONTRADA</strong>
@@ -128,28 +165,34 @@ export default function ComposePage() {
   return (
     <main className="stage" id="main">
       <header className="brand">
-        <h1>
-          LOOKA <span>EDITOR</span>
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <RadioIcon size={22} style={{ color: "var(--accent)" }} />
+          <h1>
+            LOOKA <span>EDITOR</span>
+          </h1>
+          <span className="retro-badge">
+            TIMELINE REC
+          </span>
+        </div>
         <div className="state-readout">
           <Link href="/session" className="ghost" style={{ fontSize: "12px", textDecoration: "none" }}>
-            ◄ SESSÃO
+            <ChevronLeftIcon size={14} /> SESSÃO
           </Link>
           <Link href="/compose" className="ghost" style={{ fontSize: "12px", textDecoration: "none" }}>
-            📂 PROJETOS
+            <FolderIcon size={14} /> PROJETOS
           </Link>
         </div>
       </header>
 
       {saveStatus && (
-        <div className="notice tone-info" role="status" style={{ marginTop: "12px" }}>
+        <div className="notice tone-info" role="status" style={{ marginTop: "14px" }}>
           <strong>{saveStatus}</strong>
         </div>
       )}
 
       {/* Editor Transport Header */}
       <section className="panel" aria-label="Transporte do Editor">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
           <div>
             <input
               type="text"
@@ -168,7 +211,12 @@ export default function ComposePage() {
               }}
             />
             <p className="hint" style={{ margin: "4px 0 0" }}>
-              ID: <code>{composition.id}</code> · Atualizado em: {new Date(composition.updatedAt).toLocaleTimeString()}
+              ID: <code>{composition.id}</code> · Atualizado: {new Date(composition.updatedAt).toLocaleTimeString()}
+              {isPlaying && (
+                <span style={{ color: "var(--accent)", marginLeft: "10px", fontWeight: 600 }}>
+                  ▶ Tocando: {playheadSec.toFixed(1)}s
+                </span>
+              )}
             </p>
           </div>
 
@@ -177,18 +225,27 @@ export default function ComposePage() {
               className={`primary ${isPlaying ? "stop" : ""}`}
               onClick={handleTogglePlay}
               data-testid="btn-editor-replay"
+              aria-label={isPlaying ? "Parar Replay" : "Tocar Replay com Áudio"}
             >
-              {isPlaying ? "■ PARAR REPLAY" : "▶ TOCAR REPLAY"}
+              {isPlaying ? (
+                <>
+                  <StopIcon size={15} /> PARAR REPLAY
+                </>
+              ) : (
+                <>
+                  <PlayIcon size={15} /> TOCAR REPLAY
+                </>
+              )}
             </button>
             <button className="primary" onClick={handleSave} disabled={saving} data-testid="btn-editor-save">
-              {saving ? "SALVANDO…" : "💾 SALVAR"}
+              <SaveIcon size={15} /> {saving ? "SALVANDO…" : "SALVAR"}
             </button>
             <button
               className="primary"
               onClick={() => setIsExportOpen(true)}
               data-testid="btn-editor-export"
             >
-              ⬇ EXPORTAR
+              <DownloadIcon size={15} /> EXPORTAR
             </button>
           </div>
         </div>
@@ -200,6 +257,9 @@ export default function ComposePage() {
         onChange={setComposition}
         onSave={handleSave}
         isSaving={saving}
+        onPreviewNote={handlePreviewNote}
+        playheadSec={playheadSec}
+        isPlaying={isPlaying}
       />
 
       {/* Export Dialog */}

@@ -21,6 +21,13 @@ import {
 } from "@/features/learn/explain";
 import { useLearnSettings } from "@/features/learn/useLearnSettings";
 import { getScale } from "@/features/music/theory/scales";
+import {
+  GraduationIcon,
+  MicIcon,
+  FolderIcon,
+  PlayIcon,
+  StopIcon,
+} from "@/components/icons";
 import type { Chord, KeyEstimate, MusicalState, NoteEvent } from "@/domain/types";
 
 export default function LearnPage() {
@@ -113,18 +120,22 @@ export default function LearnPage() {
   return (
     <main className="stage" id="main" tabIndex={-1}>
       <header className="brand">
-        <h1>
-          LOOKA <span>LEARN</span>
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <GraduationIcon size={22} style={{ color: "var(--accent)" }} />
+          <h1>
+            LOOKA <span>LEARN</span>
+          </h1>
+          <span className="retro-badge">THEORY LAB</span>
+        </div>
         <div className="state-readout" aria-label="Navegação e status educacional">
           <span>
             MODO EDUCATIVO: <strong data-testid="learn-status-indicator">{enabled ? "ATIVADO" : "DESATIVADO"}</strong>
           </span>
           <Link href="/session" className="ghost" style={{ fontSize: "11px", textDecoration: "none" }} data-testid="nav-session">
-            🎙 IR PARA A SESSÃO
+            <MicIcon size={12} /> SESSÃO AO VIVO
           </Link>
           <Link href="/compose" className="ghost" style={{ fontSize: "11px", textDecoration: "none" }} data-testid="nav-compose">
-            📂 PROJETOS
+            <FolderIcon size={12} /> PROJETOS
           </Link>
         </div>
       </header>
@@ -143,9 +154,17 @@ export default function LearnPage() {
             className={enabled ? "primary stop" : "primary"}
             onClick={toggleEnabled}
             data-testid="toggle-learn-enabled"
-            style={{ minWidth: "160px" }}
+            style={{ minWidth: "180px" }}
           >
-            {enabled ? "■ DESATIVAR MODO EDUCATIVO" : "▶ ATIVAR MODO EDUCATIVO"}
+            {enabled ? (
+              <>
+                <StopIcon size={14} /> DESATIVAR MODO EDUCATIVO
+              </>
+            ) : (
+              <>
+                <PlayIcon size={14} /> ATIVAR MODO EDUCATIVO
+              </>
+            )}
           </button>
         </div>
       </section>
@@ -159,25 +178,25 @@ export default function LearnPage() {
 
         <div className="controls" style={{ gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
           <button onClick={runDemoCEG} data-testid="btn-demo-ceg">
-            🎵 C–E–G (Tríade C)
+            C–E–G (Tríade C)
           </button>
           <button onClick={runDemoGDEmC} data-testid="btn-demo-g-d-em-c">
-            🎹 G–D–Em–C (I–V–vi–IV)
+            G–D–Em–C (I–V–vi–IV)
           </button>
           <button onClick={() => runDemoCadence("authentic")} data-testid="btn-demo-authentic">
-            🏁 Cadência Autêntica (V → I)
+            Cadência Autêntica (V → I)
           </button>
           <button onClick={() => runDemoCadence("plagal")} data-testid="btn-demo-plagal">
-            🕊 Cadência Plagal (IV → I)
+            Cadência Plagal (IV → I)
           </button>
           <button onClick={() => runDemoCadence("deceptive")} data-testid="btn-demo-deceptive">
-            ⚡ Cadência de Engano (V → vi)
+            Cadência de Engano (V → vi)
           </button>
           <button onClick={() => runDemoCadence("half")} data-testid="btn-demo-half">
-            ⏸ Semicadência (I → V)
+            Semicadência (I → V)
           </button>
           <button className="ghost" onClick={runDemoAtonal} data-testid="btn-demo-atonal">
-            🌈 Som Livre / Atonal
+            Som Livre / Atonal
           </button>
         </div>
 

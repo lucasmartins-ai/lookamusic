@@ -42,7 +42,7 @@ export class LookaheadScheduler<T extends TimedItem> {
   private dispatchedCount = 0;
   private readonly tickMs: number;
   private readonly horizonMs: number;
-  private readonly now: () => number;
+  private now: () => number;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -52,6 +52,10 @@ export class LookaheadScheduler<T extends TimedItem> {
     this.tickMs = opts.tickMs ?? config.audio.schedulerTickMs;
     this.horizonMs = opts.horizonMs ?? config.audio.lookaheadMs;
     this.now = opts.now ?? (() => Date.now() / 1000);
+  }
+
+  setNow(now: () => number): void {
+    this.now = now;
   }
 
   /** Enqueue items; the queue is always kept sorted by audioTime. */

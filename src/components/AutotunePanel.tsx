@@ -7,6 +7,7 @@
  * correction depth amount, and headphone monitor volume.
  */
 import type { AutotuneConfig, AutotuneSnapMode, AutotuneSpeed } from "@/domain/types";
+import { LightningIcon, HeadphonesIcon } from "@/components/icons";
 
 interface AutotunePanelProps {
   config: AutotuneConfig;
@@ -40,7 +41,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "16px" }}>⚡</span>
+          <LightningIcon size={18} style={{ color: "var(--accent)" }} />
           <h2 style={{ fontSize: "14px", margin: 0, letterSpacing: "0.08em", fontWeight: 700 }}>
             AUTOTUNE & CORREÇÃO VOCAL
           </h2>
@@ -233,7 +234,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
           gap: "8px",
         }}
       >
-        <span>🎧</span>
+        <HeadphonesIcon size={16} style={{ color: "var(--accent)" }} />
         <span>
           <strong>Dica de Monitoramento:</strong> Use fones de ouvido para ouvir sua voz afinada em
           tempo real sem microfonia acústica com os alto-falantes.

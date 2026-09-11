@@ -27,6 +27,21 @@ import { LearnPanel } from "@/components/LearnPanel";
 import { VocalPitchCoach } from "@/features/pitch/coach";
 import { VocalCoachPanel } from "@/components/VocalCoachPanel";
 import { AutotunePanel } from "@/components/AutotunePanel";
+import {
+  MicIcon,
+  PlayIcon,
+  StopIcon,
+  RecordIcon,
+  PencilIcon,
+  FolderIcon,
+  GraduationIcon,
+  BookIcon,
+  HelpIcon,
+  DiagnosticsIcon,
+  RadioIcon,
+  PlusIcon,
+  CheckIcon,
+} from "@/components/icons";
 import { Suspense } from "react";
 
 const KEY_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
@@ -75,7 +90,7 @@ function SessionBody() {
   }, [cond.key, mic]);
 
   const singFixture = () => {
-    const now = Date.now();
+    const now = performance.now();
     cond.injectFixture(g4Observations(now, now + 2400), 0.2);
   };
 
@@ -150,13 +165,13 @@ function SessionBody() {
             title="Ativar/Desativar modo educacional"
             style={{ fontSize: "11px", padding: "2px 8px" }}
           >
-            🎓 EDU {learn.enabled ? "ON" : "OFF"}
+            <GraduationIcon size={12} /> EDU {learn.enabled ? "ON" : "OFF"}
           </button>
           <Link href="/learn" className="ghost" style={{ fontSize: "11px", textDecoration: "none" }} data-testid="nav-learn">
-            📚 APRENDER
+            <BookIcon size={12} /> APRENDER
           </Link>
           <Link href="/compose" className="ghost" style={{ fontSize: "11px", textDecoration: "none" }} data-testid="nav-compose">
-            📂 PROJETOS
+            <FolderIcon size={12} /> PROJETOS
           </Link>
         </div>
       </header>
@@ -187,7 +202,7 @@ function SessionBody() {
         <div className="controls">
           {running ? (
             <button className="primary stop" onClick={mic.stop} aria-label="Stop listening" data-testid="stop">
-              ■ STOP
+              <StopIcon size={14} /> STOP
             </button>
           ) : (
             <button
@@ -197,17 +212,17 @@ function SessionBody() {
               aria-label="Start session"
               data-testid="start"
             >
-              {mic.status === "requesting" ? "REQUESTING MIC…" : "▶ START SESSION"}
+              <PlayIcon size={14} /> {mic.status === "requesting" ? "REQUESTING MIC…" : "START SESSION"}
             </button>
           )}
           <button onClick={singFixture} aria-label="Sing synthetic fixture" data-testid="fixture">
-            ♪ SING FIXTURE (no mic)
+            <RadioIcon size={14} /> SING FIXTURE (no mic)
           </button>
           <button className="ghost" onClick={() => setShowDiag((v) => !v)}>
-            {showDiag ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS (D)"}
+            <DiagnosticsIcon size={14} /> {showDiag ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS (D)"}
           </button>
           <button ref={helpBtnRef} className="ghost" onClick={() => setHelpOpen(true)} data-testid="help-open">
-            AJUDA (?)
+            <HelpIcon size={14} /> AJUDA (?)
           </button>
         </div>
         <p className="hint">
@@ -256,7 +271,7 @@ function SessionBody() {
               }}
               data-testid="btn-stop-recording"
             >
-              ■ PARAR GRAVAÇÃO
+              <StopIcon size={14} /> PARAR GRAVAÇÃO
             </button>
           ) : (
             <button
@@ -264,7 +279,7 @@ function SessionBody() {
               onClick={() => recorder.startRecording()}
               data-testid="btn-start-recording"
             >
-              ● GRAVAR SESSÃO
+              <RecordIcon size={14} /> GRAVAR SESSÃO
             </button>
           )}
 
@@ -275,7 +290,7 @@ function SessionBody() {
               data-testid="link-open-editor"
               style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
             >
-              ✏ ABRIR NO EDITOR
+              <PencilIcon size={14} /> ABRIR NO EDITOR
             </Link>
           )}
 
@@ -285,7 +300,7 @@ function SessionBody() {
             style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
             data-testid="link-compose-hub"
           >
-            📂 PROJETOS SALVOS ({recorder.compositions.length})
+            <FolderIcon size={14} /> PROJETOS SALVOS ({recorder.compositions.length})
           </Link>
         </div>
         <p className="hint">
@@ -312,7 +327,7 @@ function SessionBody() {
                 aria-pressed={on}
                 title={pend ? `Queued → bar ${pend.effectiveBar}` : on ? "On (click to remove, quantized)" : "Off (click to add, quantized)"}
               >
-                {on ? "■" : "＋"} {id}{pend ? " ⏳" : ""}
+                {on ? <CheckIcon size={12} /> : <PlusIcon size={12} />} {id}{pend ? " (fila)" : ""}
               </button>
             );
           })}

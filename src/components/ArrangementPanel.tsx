@@ -133,7 +133,7 @@ export function ArrangementPanel({
             >
               {on ? "♪ " : "+ "}
               {LABELS[id]}
-              {q ? ` ⏳${q.effectiveBar + 1}` : ""}
+              {q ? ` [c.${q.effectiveBar + 1}]` : ""}
             </button>
           );
         })}

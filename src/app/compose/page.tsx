@@ -16,6 +16,14 @@ import {
 } from "@/features/recording/storage";
 import { createDefaultComposition } from "@/features/recording/schema";
 import { newId } from "@/lib/ids";
+import {
+  RadioIcon,
+  ChevronLeftIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  FolderIcon,
+} from "@/components/icons";
 
 export default function ComposeHubPage() {
   const router = useRouter();
@@ -55,12 +63,21 @@ export default function ComposeHubPage() {
   return (
     <main className="stage" id="main">
       <header className="brand">
-        <h1>
-          LOOKA <span>PROJETOS</span>
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <FolderIcon size={24} style={{ color: "var(--accent)" }} />
+          <h1>
+            LOOKA <span>PROJETOS</span>
+          </h1>
+          <span className="retro-badge">
+            INDEXED DB
+          </span>
+        </div>
         <div className="state-readout">
           <Link href="/session" className="ghost" style={{ fontSize: "12px", textDecoration: "none" }}>
-            ◄ SESSÃO AO VIVO
+            <ChevronLeftIcon size={14} /> SESSÃO AO VIVO
+          </Link>
+          <Link href="/" className="ghost" style={{ fontSize: "12px", textDecoration: "none" }}>
+            <RadioIcon size={14} /> INÍCIO
           </Link>
         </div>
       </header>
@@ -75,7 +92,7 @@ export default function ComposeHubPage() {
           </div>
           <div className="controls">
             <button className="primary" onClick={handleCreateNew} data-testid="btn-create-composition">
-              + NOVA COMPOSIÇÃO
+              <PlusIcon size={14} /> NOVA COMPOSIÇÃO
             </button>
           </div>
         </div>
@@ -87,42 +104,39 @@ export default function ComposeHubPage() {
         ) : compositions.length === 0 ? (
           <div className="notice tone-info" role="status">
             <strong>NENHUMA COMPOSIÇÃO SALVA AINDA</strong>
-            <p>Grave uma sessão ao vivo ou clique em "+ NOVA COMPOSIÇÃO" para criar a primeira.</p>
+            <p>Grave uma sessão ao vivo ou clique em &quot;NOVA COMPOSIÇÃO&quot; para criar a primeira.</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
             {compositions.map((comp) => (
               <div
                 key={comp.id}
+                className="retro-card"
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  background: "var(--panel-2)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "6px",
-                  padding: "12px 16px",
                   flexWrap: "wrap",
-                  gap: "8px",
+                  gap: "10px",
                 }}
               >
                 <div>
                   <strong style={{ fontSize: "15px", color: "var(--text)" }}>{comp.name}</strong>
-                  <p className="hint" style={{ margin: "2px 0 0" }}>
-                    {comp.tempo} BPM · {comp.noteCount} notas · {comp.chordCount} acordes · Atualizado em: {new Date(comp.updatedAt).toLocaleDateString()}
+                  <p className="hint" style={{ margin: "4px 0 0" }}>
+                    {comp.tempo} BPM · {comp.noteCount} notas · {comp.chordCount} acordes · Atualizado: {new Date(comp.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="controls">
-                  <Link href={`/compose/${comp.id}`} className="primary" style={{ padding: "6px 14px", textDecoration: "none", fontSize: "12px" }}>
-                    ABRIR NO EDITOR
+                  <Link href={`/compose/${comp.id}`} className="primary" style={{ padding: "8px 16px", textDecoration: "none", fontSize: "12px", minWidth: "auto" }}>
+                    <PencilIcon size={13} /> ABRIR NO EDITOR
                   </Link>
                   <button
                     className="ghost stop"
                     onClick={() => handleDelete(comp.id)}
                     aria-label={`Excluir ${comp.name}`}
-                    style={{ padding: "6px 10px", fontSize: "12px" }}
+                    style={{ padding: "8px 12px", fontSize: "12px", minHeight: "36px" }}
                   >
-                    🗑
+                    <TrashIcon size={14} />
                   </button>
                 </div>
               </div>

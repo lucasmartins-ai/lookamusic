@@ -9,6 +9,7 @@
 import { INSTRUMENTS, type GestureKind, type InstrumentId } from "@/domain/types";
 import type { GesturesApi } from "@/features/gestures/useGestures";
 import { GESTURE_CONTROLS, GESTURE_KEYBOARD, GESTURE_ORDER } from "@/features/gestures/mapping";
+import { EyeIcon, CameraIcon } from "@/components/icons";
 
 const INSTRUMENT_LABELS: Record<InstrumentId, string> = {
   drums: "Bateria",
@@ -67,8 +68,9 @@ export function GesturePanel({ gestures, selected, onSelect }: GesturePanelProps
           role="status"
           aria-label={`Visão computacional ${visionBadge}`}
           data-testid="gesture-vision-badge"
+          style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
         >
-          👁 {visionBadge}
+          <EyeIcon size={14} /> {visionBadge}
         </span>
         <div className="control-field">
           <label htmlFor="gesture-selected">ALVO</label>
@@ -110,8 +112,9 @@ export function GesturePanel({ gestures, selected, onSelect }: GesturePanelProps
               onClick={gestures.startCamera}
               aria-label="Ativar câmera para gestos"
               data-testid="gesture-start"
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              📷 ATIVAR CÂMERA
+              <CameraIcon size={16} /> ATIVAR CÂMERA
             </button>
             <button className="ghost" onClick={gestures.acknowledge} data-testid="gesture-dismiss">
               Continuar sem câmera
@@ -122,8 +125,12 @@ export function GesturePanel({ gestures, selected, onSelect }: GesturePanelProps
 
       {!showExplain && !running && cameraError === null && (
         <div className="controls">
-          <button onClick={gestures.startCamera} aria-label="Ativar câmera para gestos">
-            📷 Ativar câmera
+          <button
+            onClick={gestures.startCamera}
+            aria-label="Ativar câmera para gestos"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <CameraIcon size={16} /> Ativar câmera
           </button>
         </div>
       )}

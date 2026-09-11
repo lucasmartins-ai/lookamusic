@@ -200,6 +200,21 @@ export class Conductor {
     this.applyMixerToBand();
   }
 
+  /** Swap the output band and bind live audio clock mappings. */
+  setAudioOutput(
+    band: Record<InstrumentId, InstrumentEngine>,
+    toAudioTime?: (transportSec: number) => number,
+    schedulerNow?: () => number,
+  ): void {
+    (this.opts as { band: Record<InstrumentId, InstrumentEngine> }).band = band;
+    if (toAudioTime) this.opts.toAudioTime = toAudioTime;
+    if (schedulerNow) {
+      this.opts.schedulerNow = schedulerNow;
+      this.scheduler.setNow(schedulerNow);
+    }
+    this.applyMixerToBand();
+  }
+
   reset(originSec: number): void {
     this.transport.reset(originSec);
     this.plannedBars.clear();

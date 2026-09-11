@@ -3,8 +3,8 @@
 > Agente: este é o arquivo que responde "qual é a próxima fase?".
 > Usuário: basta dizer **"Vamos para a próxima fase"**.
 
-- **Fase atual:** Desktop 1.1 — OK (Desktop Wrapper, Baixo Input Lag, Vocal Coach e Autotune)
-- **Próxima fase:** Concluído — Todas as fases e marcos de pré-lançamento entregues com portão de qualidade 100% verde (564/564 testes)
+- **Fase atual:** Overhaul 1.3 — OK (Live Audio Engine Fix, Timeline Synthesizer & Neumorphic Vintage Hi-Fi Design)
+- **Próxima fase:** Concluído — Todas as fases, correções de áudio ao vivo e melhorias estéticas entregues com portão de qualidade 100% verde (590/590 testes)
 
 ## Todo-list das fases (só marque OK com o gate do AGENTS.md §3 verde)
 

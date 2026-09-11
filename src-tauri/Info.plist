@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>O LookaMusic necessita de acesso ao microfone para analisar sua voz em tempo real e acompanhar com a banda.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>O LookaMusic utiliza a câmera localmente para reconhecimento de gestos das mãos para reger a banda (100% on-device).</string>
+</dict>
+</plist>

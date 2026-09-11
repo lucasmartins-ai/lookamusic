@@ -16,12 +16,12 @@ const BEATS_PER_BAR = 4;
 
 interface Props {
   notes: TimelineNote[];
-  phrases: TimelinePhrase[];
+  phrases?: TimelinePhrase[];
   /** Playback BPM, or null before any tempo evidence. */
   bpm: number | null;
 }
 
-export function NoteTimeline({ notes, phrases, bpm }: Props) {
+export function NoteTimeline({ notes, phrases = [], bpm }: Props) {
   if (notes.length === 0 && phrases.length === 0) {
     return (
       <div className="timeline tl-empty" role="img" aria-label="Note timeline is empty">

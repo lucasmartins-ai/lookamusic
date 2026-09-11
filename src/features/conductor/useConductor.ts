@@ -79,11 +79,11 @@ export function useConductor() {
     const engines = createEngines(bus);
     condRef.current = new Conductor(engines, {
       band: stubBand(),
-      schedulerNow: () => Date.now() / 1000,
+      schedulerNow: () => performance.now() / 1000,
       styleId: "neutral",
       seed: "session",
     }, bus);
-    condRef.current.reset(Date.now() / 1000);
+    condRef.current.reset(performance.now() / 1000);
   }
 
   const ctxRef = useRef<AudioContext | null>(null);
@@ -133,7 +133,7 @@ export function useConductor() {
       energy01: st.dynamics.smoothedEnergy,
       energyLevel: st.dynamics.level,
       density: st.rhythm.density,
-      currentBar: c.transport.barFloatAt(Date.now() / 1000),
+      currentBar: c.transport.barFloatAt(performance.now() / 1000),
       latencyP95: p95,
       perceivedMs: perceived,
       withinBudget: c.latency.withinBudget(p95),
@@ -170,7 +170,7 @@ export function useConductor() {
   // long sessions late-free. CPU per tick is sub-ms in the panel.
   useEffect(() => {
     const id = setInterval(() => {
-      condRef.current?.tick(Date.now() / 1000);
+      condRef.current?.tick(performance.now() / 1000);
       refresh();
     }, 50);
     return () => clearInterval(id);
@@ -204,13 +204,14 @@ export function useConductor() {
       const liveCtx = ctx;
       const liveMaster = master;
       const toAudio = (t: number): number => {
-        const nowTransport = Date.now() / 1000;
-        return liveCtx.currentTime + Math.max(0, t - nowTransport) + 0.06;
+        const nowTransport = performance.now() / 1000;
+        return liveCtx.currentTime + Math.max(0, t - nowTransport) + 0.04;
       };
-      condRef.current?.setBand(createBand(() => new WebAudioSink(liveCtx, liveMaster)));
-      // Re-point the scheduler clock at the audio clock via re-tick mapping:
-      // transport stays wall-anchored; toAudioTime carries the offset.
-      void toAudio;
+      condRef.current?.setAudioOutput(
+        createBand(() => new WebAudioSink(liveCtx, liveMaster)),
+        toAudio,
+        () => liveCtx.currentTime,
+      );
       setSnap((p) => ({ ...p, audioReady: true }));
     }
     if (ctx.state === "suspended") void ctx.resume();
@@ -227,7 +228,7 @@ export function useConductor() {
 
   const toggleInstrument = useCallback((id: InstrumentId) => {
     ensureAudio();
-    condRef.current?.toggleInstrument(id, Date.now() / 1000);
+    condRef.current?.toggleInstrument(id, performance.now() / 1000);
     refresh();
   }, [ensureAudio, refresh]);
 
@@ -255,7 +256,7 @@ export function useConductor() {
       condRef.current?.pushObservation(obs);
       condRef.current?.pushEnergy(rms, obs.timestamp);
     }
-    condRef.current?.tick(Date.now() / 1000, { phraseBoundary: true });
+    condRef.current?.tick(performance.now() / 1000, { phraseBoundary: true });
     refresh();
   }, [ensureAudio, refresh]);
 
@@ -273,6 +274,7 @@ export function useConductor() {
     ensureAudio,
     injectFixture,
     getMusicalState: () => condRef.current!.state.snapshot(),
+    getPhrases: () => condRef.current?.state.phraseRecords() ?? [],
     setVolume: (id: InstrumentId, v: number) => { condRef.current?.setVolume(id, v); setMixerVersion((x) => x + 1); },
     setPan: (id: InstrumentId, p: number) => { condRef.current?.setPan(id, p); setMixerVersion((x) => x + 1); },
     toggleMute: (id: InstrumentId) => { condRef.current?.toggleMute(id); setMixerVersion((x) => x + 1); },

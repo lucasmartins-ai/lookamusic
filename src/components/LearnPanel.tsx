@@ -12,6 +12,7 @@ import type { MusicalState } from "@/domain/types";
 import type { LearnLevel, SupportedLocale } from "@/features/learn/types";
 import { getLearnLevels, UI_I18N } from "@/features/learn/i18n";
 import { useContextualExplanation } from "@/features/learn/useContextualExplanation";
+import { GraduationIcon } from "@/components/icons";
 
 export interface LearnPanelProps {
   musicalState: MusicalState;
@@ -61,7 +62,7 @@ export function LearnPanel({
       >
         <div>
           <h2 style={{ display: "inline-flex", alignItems: "center", gap: "8px", margin: 0 }}>
-            <span>🎓</span> {ui.headerTitle}
+            <GraduationIcon size={20} /> {ui.headerTitle}
           </h2>
           <p className="hint" style={{ margin: "2px 0 0 0" }}>
             {ui.headerSubtitle}
@@ -96,7 +97,7 @@ export function LearnPanel({
             data-testid="btn-learn-locale"
             style={{ fontSize: "11px", padding: "4px 8px" }}
           >
-            {locale === "pt-BR" ? "🌐 EN" : "🌐 PT"}
+            {locale === "pt-BR" ? "EN" : "PT"}
           </button>
 
           <Link

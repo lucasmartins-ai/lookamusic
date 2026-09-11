@@ -4,6 +4,34 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [Overhaul 1.3] — Live Audio Engine Fix, Timeline Synthesizer & Neumorphic Vintage Hi-Fi Design — OK
+
+- **Correção Crítica do Motor de Áudio (Live Band & Acompanhamento Imediato)**:
+  - Resolução da causa raiz do silêncio: `Date.now() / 1000` (~1.74 bilhão de segundos) estava sendo repassado ao `AudioContext.currentTime` (que começa em 0.0s), agendando todas as notas da banda para **55 anos no futuro**;
+  - `src/features/instruments/scheduler.ts`: suporte a `setNow(now: () => number)` vinculando o relógio ao `performance.now() / 1000`;
+  - `src/features/conductor/conductor.ts` e `src/features/conductor/useConductor.ts`: método `setAudioOutput(band, toAudioTime, schedulerNow)` integrado, conectando a saída estéreo WebAudio ao motor do regente;
+  - `src/app/page.tsx`: conectado diretamente ao `useConductor` com hot-pickup < 50ms ao cantar no microfone.
+
+- **Sintetizador e Player de Áudio na Linha do Tempo (`/compose/[id]`)**:
+  - `src/features/recording/player.ts`: criado `CompositionPlayer` com sintetizadores estéreo de instrumentos reais (`drums`, `bass`, `piano`, `guitar`, `strings`, `violin`, `sax`, `accordion`);
+  - Preview auditivo instantâneo de notas ao clicar em qualquer bloco e transposição (+1 ST / -1 ST) com audição em tempo real (`previewNote`);
+  - `src/components/TimelineEditor.tsx`: barra visual de playhead em tempo real com indicador de tempo decorrido e total;
+  - Reprodução contínua da composição com acompanhamento e melodia.
+
+- **Design Neumórfico & Rádio Retro Analógico**:
+  - `src/app/globals.css`: tokens neumórficos de alta fidelidade (`--neu-flat`, `--neu-raised`, `--neu-inset`, `--neu-button`, `--neu-pressed`), botões táteis metálicos e lâmpadas piloto retroiluminadas;
+  - `src/components/RetroVuMeter.tsx`: medidor de VU analógico estilo vintage com mostrador iluminado em âmbar, física balística sensível ao RMS do microfone e LED indicador de pico;
+  - `src/components/RetroTunerScale.tsx`: escala horizontal de dial estilo rádio vintage (C2 a C6 / 65Hz a 1046Hz) com agulha iluminada e visor nixie digital de frequência e nota.
+
+- **Eliminação Total de Emojis por Ícones Vetoriais SVG**:
+  - `src/components/icons/index.tsx`: biblioteca com mais de 35 ícones SVG nítidos e personalizáveis (`MicIcon`, `RadioIcon`, `PianoIcon`, `DrumIcon`, `BassIcon`, `GuitarIcon`, `StringsIcon`, `PlayIcon`, `StopIcon`, `CameraIcon`, `EyeIcon`, `HeadphonesIcon`, `LightningIcon`, `FlameIcon`, `LightbulbIcon`, etc.);
+  - Substituição de 100% dos emojis em `src/app/page.tsx`, `src/app/compose/[id]/page.tsx`, `src/app/compose/page.tsx`, `src/app/session/page.tsx`, `src/app/learn/page.tsx`, `AutotunePanel.tsx`, `GesturePanel.tsx`, `VocalCoachPanel.tsx`, `LearnPanel.tsx` e `ArrangementPanel.tsx`.
+
+- **Verificação Técnica (Portão AGENTS.md §3)**:
+  - `npm test`: **590/590 testes unitários verdes** em 70 arquivos de teste (100% aprovado);
+  - `npm run typecheck`: **0 erros TypeScript** com validação estrita (`tsc --noEmit`);
+  - `npm run build`: **Next.js Turbopack build 100% verde** com 6 rotas geradas (509 ms).
+
 ## [Hardening & i18n 1.2] — Estabilização Contextual, Debounce Melódico, i18n (pt-BR / en-US) e Acessibilidade — OK
 
 - **Resolução do Risco 1 (Estabilização de Frase Melódica Rápida)**:

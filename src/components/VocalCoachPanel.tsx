@@ -8,6 +8,7 @@
 import { useMemo } from "react";
 import type { KeyEstimate, PitchObservation, VocalCoachFeedback } from "@/domain/types";
 import { VocalPitchCoach } from "@/features/pitch/coach";
+import { MicIcon, LightbulbIcon, FlameIcon } from "@/components/icons";
 
 interface VocalCoachPanelProps {
   observation: PitchObservation | null;
@@ -82,7 +83,7 @@ export function VocalCoachPanel({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "16px" }}>🎤</span>
+          <MicIcon size={18} style={{ color: "var(--accent)" }} />
           <h2 style={{ fontSize: "14px", margin: 0, letterSpacing: "0.08em", fontWeight: 700 }}>
             VOCAL COACH & AFINADOR
           </h2>
@@ -262,7 +263,9 @@ export function VocalCoachPanel({
         }}
         data-testid="coach-advice"
       >
-        <span>💡 {message}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <LightbulbIcon size={14} style={{ color: "var(--accent)" }} /> {message}
+        </span>
         {streakMs >= 1000 && (
           <span
             style={{
@@ -270,9 +273,12 @@ export function VocalCoachPanel({
               color: "#22c55e",
               fontWeight: 700,
               whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            🔥 {(streakMs / 1000).toFixed(1)}s
+            <FlameIcon size={14} /> {(streakMs / 1000).toFixed(1)}s
           </span>
         )}
       </div>

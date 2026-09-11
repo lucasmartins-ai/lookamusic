@@ -15,7 +15,10 @@
     "desktop:build": "next build && electron-builder",
     "desktop:dist:mac": "next build && electron-builder --mac",
     "desktop:dist:win": "next build && electron-builder --win",
-    "desktop:dist:linux": "next build && electron-builder --linux"
+    "desktop:dist:linux": "next build && electron-builder --linux",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "next": "^16.0.0",
@@ -24,6 +27,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -1,0 +1,68 @@
+{
+  "name": "LookaMusic — Real-Time Voice-to-Band Instrument",
+  "short_name": "LookaMusic",
+  "description": "Você canta. O LookaMusic constrói a banda ao vivo em tempo real, 100% no seu dispositivo.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0e14",
+  "theme_color": "#0c0e14",
+  "lang": "pt-BR",
+  "categories": ["music", "audio", "utilities", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sessão ao Vivo",
+      "short_name": "Sessão",
+      "description": "Abrir o regente musical e cantar com a banda ao vivo",
+      "url": "/session",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Estúdio & Timeline",
+      "short_name": "Estúdio",
+      "description": "Editar notas gravadas e reproduzir arranjos",
+      "url": "/compose",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Laboratório de Teoria",
+      "short_name": "Teoria",
+      "description": "Explorar harmonia, cadências e funções musicais",
+      "url": "/learn",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

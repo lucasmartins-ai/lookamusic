@@ -32,7 +32,7 @@ import {
 } from "./rhythm/patterns";
 
 export interface TimelineNote extends NoteEvent {
-  open: boolean;
+  open?: boolean;
 }
 
 export interface TimelinePhrase {

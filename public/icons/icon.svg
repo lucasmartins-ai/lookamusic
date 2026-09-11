@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#1e2436"/>
+      <stop offset="70%" stop-color="#0c0e14"/>
+      <stop offset="100%" stop-color="#07080b"/>
+    </radialGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="metalRim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3d465c"/>
+      <stop offset="50%" stop-color="#1f2432"/>
+      <stop offset="100%" stop-color="#141822"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Base rounded rectangle for app icon -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+  <rect x="16" y="16" width="480" height="480" rx="100" fill="none" stroke="url(#metalRim)" stroke-width="8"/>
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="#262c3e" stroke-width="2"/>
+
+  <!-- Dial scale marks (retro tuner arc) -->
+  <circle cx="256" cy="270" r="160" fill="none" stroke="#1f2536" stroke-width="24" stroke-dasharray="4 12" />
+  <circle cx="256" cy="270" r="130" fill="#131620" stroke="#2a3248" stroke-width="4" />
+
+  <!-- Radio Dial / Soundwave bars inside core -->
+  <g fill="url(#amberGrad)" filter="url(#glow)">
+    <rect x="160" y="245" width="12" height="50" rx="6"/>
+    <rect x="184" y="225" width="12" height="90" rx="6"/>
+    <rect x="208" y="200" width="12" height="140" rx="6"/>
+    <rect x="232" y="170" width="12" height="200" rx="6"/>
+    <rect x="256" y="145" width="12" height="250" rx="6"/>
+    <rect x="280" y="170" width="12" height="200" rx="6"/>
+    <rect x="304" y="200" width="12" height="140" rx="6"/>
+    <rect x="328" y="225" width="12" height="90" rx="6"/>
+    <rect x="352" y="245" width="12" height="50" rx="6"/>
+  </g>
+
+  <!-- Center hi-fi jewel indicator -->
+  <circle cx="256" cy="270" r="28" fill="#0c0e14" stroke="#f59e0b" stroke-width="4" />
+  <circle cx="256" cy="270" r="14" fill="#fbbf24" filter="url(#glow)" />
+  <circle cx="256" cy="270" r="6" fill="#ffffff" />
+
+  <!-- Looka vintage badge text -->
+  <text x="256" y="96" text-anchor="middle" fill="#edf0f7" font-family="-apple-system, system-ui, sans-serif" font-size="34" font-weight="900" letter-spacing="6">LOOKA<tspan fill="#f59e0b">MUSIC</tspan></text>
+  <text x="256" y="445" text-anchor="middle" fill="#64748b" font-family="-apple-system, system-ui, sans-serif" font-size="16" font-weight="700" letter-spacing="4">HI-FI ON-DEVICE</text>
+</svg>
