@@ -217,11 +217,12 @@ export class SampleCache {
   }
 
   /**
-   * Consent-gated pack download with progress. Never called automatically —
-   * only from the "Baixar som real" button. Resolves per-URL; a single
-   * failure rejects that URL but keeps the rest (fallback covers the gap).
+   * Load a pack with progress (v1.3.3: the packs ship WITH the app, so this
+   * runs automatically on first use — no button, no consent). Resolves per
+   * URL; a single failure rejects that URL but keeps the rest (the native
+   * model covers the gap).
    */
-  async downloadPack(
+  async loadPack(
     urls: readonly string[],
     onProgress?: (done: number, total: number) => void,
   ): Promise<{ ok: string[]; failed: { url: string; error: string }[] }> {

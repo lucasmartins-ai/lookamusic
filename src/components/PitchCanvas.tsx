@@ -29,9 +29,9 @@ export function PitchCanvas({ history }: { history: HistoryPoint[] }) {
     ctx.clearRect(0, 0, w, h);
 
     // Octave grid lines.
-    ctx.strokeStyle = "#23262e";
+    ctx.strokeStyle = "#241f1b";
     ctx.lineWidth = 1;
-    ctx.fillStyle = "#5d6370";
+    ctx.fillStyle = "#6e655c";
     ctx.font = "10px ui-monospace, monospace";
     for (let midi = 48; midi <= 84; midi += 12) {
       const y = yOf(midi, h);
@@ -43,7 +43,7 @@ export function PitchCanvas({ history }: { history: HistoryPoint[] }) {
     }
 
     if (history.length < 2) {
-      ctx.fillStyle = "#5d6370";
+      ctx.fillStyle = "#6e655c";
       ctx.font = "13px Inter, system-ui, sans-serif";
       ctx.fillText("Press Start and sing — your pitch curve appears here.", 16, h / 2);
       return;

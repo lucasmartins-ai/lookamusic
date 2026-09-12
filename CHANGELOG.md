@@ -4,6 +4,99 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.3.3 — Som real já instalado, cantarolar mudo, padrão/repetição, UX e visual] — OK
+
+Dois lotes de pedidos do usuário, todos com o gate verde:
+**682/682 testes**, typecheck 0 erros, build Turbopack verde e
+**E2E 12/12 verde** (a falha antiga da home era expectativa em inglês num UI
+pt-BR — corrigida; o suite está 100% verde pela primeira vez, com um teste
+novo travando o recolhimento do modo avançado e a ausência de azul).
+
+### Som real EMPACOTADO ("quero que venha já instalado")
+
+- O usuário relatou que **"não tá funcionando isso de clicar em baixar"**.
+  Em vez de consertar o botão, o download deixou de existir: os 87 áudios de
+  piano/violão/bateria agora vivem em **`public/samples/**`** (mesma origem) e
+  são decodificados **automaticamente** no primeiro uso — sem gesto, sem
+  CORS, sem Cache API, sem rede. Ver **TDR-17** (revê o TDR-16).
+- `scripts/fetch-sample-packs.mjs` (versionado) materializa os pacotes com
+  proveniência auditável: FLAC → **mp3 mono 128 kbps, 4 s com fade**. O corte
+  é obrigatório: a cauda do piano tinha 16 s (~5,6 MB de RAM por nota; ~170 MB
+  nos 30 samples). Bundle final: **~4,3 MB**, ~47 MB decodificado.
+- Nomes locais sem `#` (`Cs2.mp3`) — o `#` era fragmento de URL e era a causa
+  real dos 404 do pack remoto. `cacheVersion` 2 → 3 (libera o bucket remoto
+  antigo do usuário).
+- Removidos: `shouldSuggestSamples`, banner pós-microfone,
+  `promptStorageKey`, botão/estado de download. O painel virou status +
+  liga/desliga real↔nativo + créditos.
+- Novo teste garante que **todo URL de pack existe em `public/`** (87 arquivos)
+  — manifest dessincronizado agora falha no CI, não no aparelho.
+
+### Modelos nativos (TDR-18)
+
+- `ToneParams.partials` + `noiseAttack`: bancos de **parciais aditivos** com
+  decaimento próprio, lowpass com brilho acompanhando o tom e transiente de
+  ataque (martelo do piano, unha do violão, corpo membranoso do
+  bumbo/tom/cajon com sweep de afinação preservado). Sem `partials`, o caminho
+  de oscilador único permanece idêntico. Modelos são **dado**
+  (`config.instruments.nativeModels`), não código.
+
+### Cantarolar (pedido do usuário)
+
+Pedido do usuário (4 itens), todos implementados com o gate verde:
+
+- **"As músicas estão tocando quando clico no cantarolar" (captação suja).**
+  Causa real: o silêncio era um *snapshot de mutes por canal*. Ao cantarolar,
+  `pushEnergy` → `applyLevel` (modo Auto) **acrescentava vozes que não estavam
+  no ar** (strings/violino/etc.) e elas **não estavam mudas** — a banda
+  tocava por cima do microfone. Fix: `Conductor.setBandSilenced(bool)` — mudo
+  **global** (ganho 0 em todos os canais, aplicado também a qualquer voz que
+  entre depois), usado pelo fluxo de cantarolar. "TOCAR A BANDA" continua
+  sendo o único momento em que a música começa.
+- **"Identificou mais de 14 notas" numa música de ~6.** Duas causas somadas:
+  (a) a contagem acumulava **tomadas anteriores** (a melodia nunca era
+  zerada entre tentativas) — `Conductor.clearCapture()` começa tomada limpa;
+  (b) a cantarolada chegava **picotada** (respiração, oclusiva, flicker de
+  semitom). Novo módulo puro `features/recording/hum-cleanup.ts` entende
+  padrão e repetição: funde fragmentos da mesma nota, remove blips curtos e
+  pouco confiantes, descarta o flicker de semitom entre notas iguais
+  (G4 → G#4 → G4) e trata a nota repetida dentro da janela como **uma** nota
+  sustentada. Uma cantarolada de 6 notas com 18 fragmentos vira **música de 6
+  notas** (teste dedicado); a UI mostra "N notas musicais de M captadas".
+- **"Deixar só violão, piano e drum ativos" + reais nativamente.**
+  `config.arrangement.coreEnsemble = [drums, piano, violao]`: lineup padrão e
+  **teto do Auto** (a energia nunca acrescenta fora do trio; ligar à mão
+  continua valendo). E os "modelos reais" agora são **nativos, sem download**:
+  `config.instruments.nativeModels` traz bancos de **parciais aditivos** com
+  decaimento próprio + transiente de ataque (martelo do piano, unha do violão,
+  corpo membranoso do bumbo/tom/cajon, com o sweep de afinação preservado),
+  renderizados pelo `WebAudioSink` (`ToneParams.partials`/`noiseAttack`).
+  Instrumentos sem modelo caem no oscilador de sempre (zero regressão). Os
+  packs de samples viram **upgrade HD opcional** (copy atualizada).
+- **Estabilidade da captação.** Fixes acima + janelas explícitas em
+  `config.recording.humCleanup` (fragmento 0,32 s; repetição 0,6 s; flicker
+  ≤ 0,22 s) — todas em config, sem número mágico no call site.
+
+Novos testes (20): `recording-hum-cleanup` (8), `conductor-capture-silence`
+(6) e `instruments-native-models` (6) — silêncio global comprovado com a
+energia no máximo, trio travado contra o Auto, 18 → 6 notas ponta a ponta e
+parciais renderizadas (1 oscilador por parcial + transiente).
+
+### UX e visual ("o UX não tá legal" / "aqueles textos azul")
+
+- **MODO AVANÇADO começa recolhido** (conductor reativo, gestos, autotune,
+  style/energy em `<details>`): a sessão deixou de ser um paredão de painéis e
+  o fluxo principal (cantarolar → tocar a banda → cantar junto) é o que
+  aparece. A **AJUDA** saiu de dentro do modo avançado e ficou sempre visível.
+- **Trilha de passos 1 → 2 → 3** no fluxo principal (passo atual aceso).
+- **Azul eliminado**: as âncoras não tinham estilo nenhum (azul sublinhado
+  padrão do navegador nos créditos/avisos) e `AutotunePanel`/`VocalCoachPanel`
+  traziam a paleta azulada do GitHub inline (`#1f6feb`, `#388bfd`, `#0d1117`).
+  Agora âncoras usam o tema e os neutros todos viraram **quentes** (cinza-
+  marrom de amplificador valvulado), com o âmbar como única cor de destaque.
+- E2E atualizado para o novo layout (avançado/gestos abrem antes) e a
+  expectativa em inglês da home corrigida para pt-BR.
+
 ## [v1.3.2 — Correções: Cantarolar Primeiro não tocava a banda + downloads de som real 404] — OK
 
 Dois bugs relatados pelo usuário, ambos reproduzidos e corrigidos com

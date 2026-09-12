@@ -20,11 +20,30 @@ import type {
   PitchClass,
 } from "@/domain/types";
 import { createDefaultComposition, validateComposition } from "./schema";
+import { cleanupHummedMelody, type HumCleanupStats } from "./hum-cleanup";
 
 /** Folga antes da primeira nota no loop (count-in respirável). */
 export const PLAY_ALONG_LEAD_IN_SEC = 0.5;
 /** Duração assumida p/ nota ainda aberta quando virou música. */
 export const PLAY_ALONG_OPEN_NOTE_DUR = 0.25;
+
+/**
+ * Melody cleanup report for a hum-first take (diagnostics/UI). Counts are
+ * the *musical* ones after artifacts are removed — the band plays what was
+ * sung, not the detector's fragment count.
+ */
+export interface PlayAlongNotes {
+  rawCount: number;
+  cleanCount: number;
+  stats: HumCleanupStats;
+}
+
+let lastNotes: PlayAlongNotes | null = null;
+
+/** Cleanup report of the most recent `buildPlayAlongComposition` (or null). */
+export function lastPlayAlongNotes(): PlayAlongNotes | null {
+  return lastNotes ? { ...lastNotes, stats: { ...lastNotes.stats } } : null;
+}
 
 function clampTempo(bpm: number): number {
   if (!Number.isFinite(bpm)) return config.rhythm.defaultBpm;
@@ -32,10 +51,15 @@ function clampTempo(bpm: number): number {
 }
 
 export function buildPlayAlongComposition(state: MusicalState, name = "Cantarolada"): Composition | null {
-  const notes = [...state.melody]
-    .filter((n) => Number.isFinite(n.startTime) && n.startTime >= 0)
-    .filter((n) => Number.isFinite(n.midi) && n.midi >= 0 && n.midi <= 127)
-    .sort((a, b) => a.startTime - b.startTime);
+  // Pattern/repetition cleanup first: a fragmented take must not become a
+  // song with twice as many notes as the singer hummed (user report: 6 → 14).
+  const clean = cleanupHummedMelody(state.melody);
+  const notes = clean.notes;
+  lastNotes = {
+    rawCount: clean.stats.input,
+    cleanCount: notes.length,
+    stats: clean.stats,
+  };
   if (notes.length === 0) return null;
 
   const minStart = notes[0].startTime;
@@ -106,7 +130,15 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
       energy: Math.min(1, Math.max(0, state.arrangement?.energy ?? 0.5)),
     },
     styleId: "neutral",
-    metadata: { source: "hum-first", noteCount: melody.length, chordCount: chords.length },
+    metadata: {
+      source: "hum-first",
+      noteCount: melody.length,
+      chordCount: chords.length,
+      // Limpeza de padrão/repetição: quantas notas o detector entregou e
+      // quantas sobreviveram como música (transparência do pedido do usuário).
+      rawNoteCount: clean.stats.input,
+      cleanup: { ...clean.stats },
+    },
   });
   return validateComposition(comp);
 }

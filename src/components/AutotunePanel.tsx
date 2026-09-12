@@ -20,17 +20,13 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
 
   return (
     <section
-      className="panel autotune-panel"
+      className="autotune-panel"
       aria-label="Controles de Autotune"
       data-testid="autotune-panel"
-      style={{
-        background: "rgba(22, 27, 34, 0.75)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid #30363d",
-        borderRadius: "8px",
-        padding: "16px",
-        margin: "12px 0",
-      }}
+      // v1.3.3: era o cinza-azulado do GitHub (#161b22/#30363d) inline e um
+      // card dentro do card. Agora o painel vive num `<details>` e usa só os
+      // tokens do tema (neutros quentes + âmbar).
+      style={{ marginTop: "14px" }}
     >
       <div
         style={{
@@ -58,9 +54,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
             fontWeight: 700,
             letterSpacing: "0.05em",
             borderRadius: "6px",
-            background: enabled ? "#238636" : "transparent",
-            color: enabled ? "#ffffff" : "#c9d1d9",
-            borderColor: enabled ? "#2ea043" : "#30363d",
+            minWidth: 0,
           }}
           aria-pressed={enabled}
         >
@@ -82,7 +76,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
           <label
             style={{
               fontSize: "11px",
-              color: "#8b949e",
+              color: "var(--muted)",
               display: "block",
               marginBottom: "6px",
               fontWeight: 600,
@@ -104,14 +98,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
                 className={speed === val ? "primary" : "ghost"}
                 onClick={() => onChange({ speed: val as AutotuneSpeed })}
                 data-testid={`autotune-speed-${val}`}
-                style={{
-                  fontSize: "10px",
-                  padding: "4px 8px",
-                  flex: 1,
-                  background: speed === val ? "#1f6feb" : "transparent",
-                  color: speed === val ? "#ffffff" : "#8b949e",
-                  borderColor: speed === val ? "#388bfd" : "#30363d",
-                }}
+                style={{ fontSize: "10px", padding: "4px 8px", flex: 1, minWidth: 0 }}
               >
                 {label}
               </button>
@@ -124,7 +111,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
           <label
             style={{
               fontSize: "11px",
-              color: "#8b949e",
+              color: "var(--muted)",
               display: "block",
               marginBottom: "6px",
               fontWeight: 600,
@@ -145,14 +132,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
                 className={snapMode === val ? "primary" : "ghost"}
                 onClick={() => onChange({ snapMode: val as AutotuneSnapMode })}
                 data-testid={`autotune-snap-${val}`}
-                style={{
-                  fontSize: "10px",
-                  padding: "4px 8px",
-                  flex: 1,
-                  background: snapMode === val ? "#1f6feb" : "transparent",
-                  color: snapMode === val ? "#ffffff" : "#8b949e",
-                  borderColor: snapMode === val ? "#388bfd" : "#30363d",
-                }}
+                style={{ fontSize: "10px", padding: "4px 8px", flex: 1, minWidth: 0 }}
               >
                 {label}
               </button>
@@ -165,7 +145,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
           <label
             style={{
               fontSize: "11px",
-              color: "#8b949e",
+              color: "var(--muted)",
               display: "flex",
               justifyContent: "space-between",
               marginBottom: "6px",
@@ -173,7 +153,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
             }}
           >
             <span>INTENSIDADE:</span>
-            <strong style={{ color: "#e6edf3" }}>{Math.round(amount * 100)}%</strong>
+            <strong style={{ color: "var(--text)" }}>{Math.round(amount * 100)}%</strong>
           </label>
           <input
             type="range"
@@ -183,7 +163,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
             value={amount}
             onChange={(e) => onChange({ amount: parseFloat(e.target.value) })}
             data-testid="autotune-amount-slider"
-            style={{ width: "100%", accentColor: "#1f6feb" }}
+            style={{ width: "100%", accentColor: "var(--accent)" }}
             aria-label="Intensidade de correção"
           />
         </div>
@@ -193,7 +173,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
           <label
             style={{
               fontSize: "11px",
-              color: "#8b949e",
+              color: "var(--muted)",
               display: "flex",
               justifyContent: "space-between",
               marginBottom: "6px",
@@ -201,7 +181,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
             }}
           >
             <span>RETORNO NOS FONES:</span>
-            <strong style={{ color: monitorVolume > 0 ? "#22c55e" : "#8b949e" }}>
+            <strong style={{ color: monitorVolume > 0 ? "var(--good)" : "var(--muted)" }}>
               {Math.round(monitorVolume * 100)}%
             </strong>
           </label>
@@ -213,7 +193,7 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
             value={monitorVolume}
             onChange={(e) => onChange({ monitorVolume: parseFloat(e.target.value) })}
             data-testid="autotune-monitor-slider"
-            style={{ width: "100%", accentColor: "#22c55e" }}
+            style={{ width: "100%", accentColor: "var(--good)" }}
             aria-label="Volume de retorno do microfone"
           />
         </div>
@@ -224,11 +204,11 @@ export function AutotunePanel({ config, onChange, keyLabel }: AutotunePanelProps
         style={{
           marginTop: "12px",
           padding: "6px 10px",
-          background: "rgba(56, 139, 253, 0.1)",
-          border: "1px solid rgba(56, 139, 253, 0.2)",
+          background: "rgba(245, 158, 11, 0.08)",
+          border: "1px solid rgba(245, 158, 11, 0.22)",
           borderRadius: "4px",
           fontSize: "11px",
-          color: "#8b949e",
+          color: "var(--muted)",
           display: "flex",
           alignItems: "center",
           gap: "8px",

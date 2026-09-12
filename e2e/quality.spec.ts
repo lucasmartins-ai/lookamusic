@@ -10,6 +10,7 @@ test("quality: extended session stability, latency budget, and clean navigation"
   page.on("pageerror", (e) => errors.push(String(e)));
 
   await page.goto("/session");
+  await page.getByTestId("toggle-advanced").click();
   await expect(page.getByTestId("start")).toBeVisible();
 
   // Inject fixture to activate conductor and accompaniment
@@ -33,6 +34,7 @@ test("quality: extended session stability, latency budget, and clean navigation"
   await expect(page.locator("h1")).toContainText(/LOOKA PROJETOS/i);
 
   await page.goto("/session");
+  await page.getByTestId("toggle-advanced").click();
   await expect(page.getByTestId("start")).toBeVisible();
 
   // Inject once more to ensure fresh instance functions cleanly

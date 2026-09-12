@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useMicSession } from "@/features/audio/useMicSession";
 import { useConductor } from "@/features/conductor/useConductor";
 import { useRecorder } from "@/features/recording/useRecorder";
-import { buildPlayAlongComposition } from "@/features/recording/playalong";
+import { buildPlayAlongComposition, lastPlayAlongNotes } from "@/features/recording/playalong";
 import { CompositionPlayer } from "@/features/recording/player";
 import { saveComposition } from "@/features/recording/storage";
 import { TauriUpdateButton } from "@/components/TauriUpdateButton";
@@ -83,23 +83,25 @@ function SessionBody() {
   const running = mic.status === "running";
 
   // Hum-first (cantarolar → banda toca em loop → você acompanha).
-  // Fase 1 (humming): mic aberto, banda do regente MUTA — só captura a
-  // melodia em silêncio, sem o ciclo mic-recaptura-banda (notas fantasmas).
+  // Fase 1 (humming): mic aberto, banda do regente SILENCIADA POR COMPLETO
+  // (`setBandSilenced`, ganho 0 em todos os canais — inclusive vozes que o
+  // Auto acrescentaria durante a captura) e tomada limpa (`clearCapture`).
+  // Nada toca: só a voz entra no microfone, sem ciclo mic-recaptura-banda.
   // Fase 2 (playing): CompositionPlayer toca a música fixa em loop; o mic
   // segue aberto só p/ acompanhamento visual (coach/energia), sem reagir.
   const [humPhase, setHumPhase] = useState<"idle" | "humming" | "playing">("idle");
   const [humMsg, setHumMsg] = useState<string | null>(null);
+  const [lastCleanup, setLastCleanup] = useState<ReturnType<typeof lastPlayAlongNotes>>(null);
   // Phase 17: pure-reactive mode is the advanced path; hum-first is primary.
-  // Default open so the full conductor stays available (and linkable) — the
-  // warning banner appears only while it is actually driving the band.
-  const [showReactive, setShowReactive] = useState(true);
+  // v1.3.3 (UX): começa FECHADO — a sessão empilhava todos os painéis abertos
+  // e a ação principal competia com ajustes avançados. Um clique abre.
+  const [showReactive, setShowReactive] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const feedbackRef = useRef(new FeedbackWatcher());
   const [playComp, setPlayComp] = useState<Composition | null>(null);
   const [playhead, setPlayhead] = useState(0);
   const playerRef = useRef<CompositionPlayer | null>(null);
   const keepLoop = useRef(false);
-  const mutedByHum = useRef<InstrumentId[]>([]);
 
   const ensurePlayer = () => {
     if (!playerRef.current) playerRef.current = new CompositionPlayer();
@@ -114,33 +116,25 @@ function SessionBody() {
     };
   }, []);
 
-  const muteConductorBand = () => {
-    mutedByHum.current = [];
-    const mixer = cond.mixer;
-    if (!mixer) return;
-    for (const id of INSTRUMENTS as readonly InstrumentId[]) {
-      if (cond.active[id] && !mixer[id].muted) {
-        cond.toggleMute(id);
-        mutedByHum.current.push(id);
-      }
-    }
-  };
-
-  const unmuteConductorBand = () => {
-    for (const id of mutedByHum.current) cond.toggleMute(id);
-    mutedByHum.current = [];
-  };
-
   const startHum = async () => {
     setHumMsg(null);
-    // Silence the band BEFORE starting the conductor (the mixer state is
-    // applied to the real audio graph as soon as ensureAudio() runs below).
-    muteConductorBand();
+    // Silence the WHOLE band BEFORE starting the conductor. A global silence
+    // (conductor-side gain 0 on every channel) is the only thing that holds:
+    // the previous per-channel mute snapshot let the Auto energy add
+    // instruments mid-capture, and they played over the microphone.
+    cond.setBandSilenced(true);
+    // Fresh take: clear the melody captured by any previous attempt, so the
+    // note count reflects THIS hummed take (accumulated takes were inflating
+    // the count — 6 hummed notes reading as 14).
+    cond.clearCapture();
     // CRITICAL: the conductor is created stopped, and pushObservation()
     // early-returns while stopped — without this the hummed melody is never
     // captured and "TOCAR A BANDA" has nothing to build a song from.
-    // The band stays muted, so no reactive audio is heard during capture.
+    // The band stays silent, so nothing but the voice reaches the mic.
     cond.start();
+    keepLoop.current = false;
+    playerRef.current?.stop();
+    setLastCleanup(null);
     if (mic.status !== "running") {
       await mic.start();
     }
@@ -171,18 +165,22 @@ function SessionBody() {
       setHumMsg("Cante primeiro alguns segundos — nenhuma nota estável captada ainda.");
       return;
     }
+    const clean = lastPlayAlongNotes();
     keepLoop.current = true;
     setPlayComp(comp);
+    setLastCleanup(clean);
     setPlayhead(0);
     setHumMsg(null);
     setHumPhase("playing");
+    // The band keeps its capture silence: the song you hear now is the fixed
+    // CompositionPlayer loop, and you sing along on top of it.
     loopPlay(comp);
   };
 
   const stopHumFlow = () => {
     keepLoop.current = false;
     playerRef.current?.stop();
-    unmuteConductorBand();
+    cond.setBandSilenced(false);
     setHumPhase("idle");
     setPlayhead(0);
   };
@@ -275,10 +273,11 @@ function SessionBody() {
 
   // Phase 17: always-visible diagnostics (no need to open the D panel).
   const pitchConfidence = cond.stableVoiced ? cond.stableConfidence : (mic.current?.confidence ?? 0);
+  // "nativo" = modelo do engine (sem download); "HD" = pack de samples.
+  // "gravado" = sample empacotado no app (já instalado); "nativo" = modelo do engine.
   const sampleLabel = samples.packs
-    .map((p) => `${SAMPLE_LABELS[p.instrument]}: ${p.useReal && p.status === "ready" ? "real" : "synth"}`)
+    .map((p) => `${SAMPLE_LABELS[p.instrument]}: ${p.useReal && p.status !== "unavailable" ? "gravado" : "nativo"}`)
     .join(" · ");
-  const showPackSuggestion = samples.suggestPackForMic(running);
 
   // Phase 10: every mic state gets a recovery card; advisories while live.
   const card = micStatusCard(mic.status, mic.error);
@@ -300,6 +299,9 @@ function SessionBody() {
   }, [running, mic.diagnostics, mic.history]);
 
   const startSession = () => {
+    // Advanced/reactive mode is the only path where the band may sound while
+    // the mic is open — make sure a previous capture silence is lifted.
+    cond.setBandSilenced(false);
     cond.start();
     void mic.start();
   };
@@ -383,10 +385,26 @@ function SessionBody() {
 
       <section className="panel primary-flow" aria-label="Cantarolar primeiro (fluxo recomendado)">
         <h2>CANTAROLAR PRIMEIRO (SEM TRAVA) · caminho recomendado</h2>
+        <div className="flow-steps" aria-label="Passos do fluxo" data-testid="hum-steps">
+          <span
+            className={`flow-step ${
+              humPhase === "humming" ? "now" : humPhase === "playing" ? "done" : "now"
+            }`}
+          >
+            <span aria-hidden>1</span> CANTAROLAR
+          </span>
+          <span className={`flow-step ${humPhase === "playing" ? "now" : ""}`}>
+            <span aria-hidden>2</span> TOCAR A BANDA
+          </span>
+          <span className={`flow-step ${humPhase === "playing" ? "done" : ""}`}>
+            <span aria-hidden>3</span> CANTAR JUNTO
+          </span>
+        </div>
         <p className="hint">
-          1. CANTAROLAR com a banda muda → 2. TOCAR A BANDA em loop → cante junto.
-          A banda toca a música fixa; o mic só acompanha (sem reagir e sem eco).
-          De preferência, use fone.
+          1. CANTAROLAR com a banda COMPLETAMENTE muda (nada toca — nem o Auto,
+          nem vozes que entrariam depois) → 2. TOCAR A BANDA em loop → cante
+          junto. Só no passo 2 a música começa. A banda toca a música fixa; o
+          mic só acompanha (sem reagir e sem eco). De preferência, use fone.
         </p>
         <div className="controls">
           {humPhase === "idle" && (
@@ -414,6 +432,19 @@ function SessionBody() {
               </button>
             </>
           )}
+          {/*
+           * v1.3.3 (UX): a ajuda fica SEMPRE visível no fluxo principal —
+           * antes vivia dentro do modo avançado, ou seja, quem precisava dela
+           * tinha que abrir o painel mais complexo para achá-la.
+           */}
+          <button
+            ref={helpBtnRef}
+            className="ghost"
+            onClick={() => setHelpOpen(true)}
+            data-testid="help-open"
+          >
+            <HelpIcon size={14} /> AJUDA (?)
+          </button>
         </div>
         <p className="meta" aria-live="polite" data-testid="hum-status">
           {humPhase === "humming" &&
@@ -424,26 +455,21 @@ function SessionBody() {
             `Tocando em loop (${playhead.toFixed(1)}s) — cante junto. Mic segue aberto só p/ acompanhar.`}
           {humPhase === "idle" && "Parado."}
         </p>
+        {lastCleanup && lastCleanup.stats.input !== lastCleanup.cleanCount && (
+          <p className="meta" data-testid="hum-cleanup">
+            Padrão e repetição entendidos: {lastCleanup.cleanCount} nota(s) musicais de{" "}
+            {lastCleanup.stats.input} captadas (
+            {lastCleanup.stats.merged + lastCleanup.stats.repeats} repetição(ões) fundidas,
+            {" "}
+            {lastCleanup.stats.flickers + lastCleanup.stats.blips} fragmento(s) descartado(s)).
+          </p>
+        )}
         {humMsg && (
           <p className="meta" role="status" data-testid="hum-msg">
             {humMsg}
           </p>
         )}
       </section>
-
-      {showPackSuggestion && (
-        <div className="notice tone-warning" role="status" data-testid="samples-suggest">
-          <strong>Quer som de verdade?</strong> Baixe os packs de piano, violão e bateria
-          (som real, ~5 MB, ficam neste aparelho) na seção <a href="#som-real">SOM REAL</a>.
-          Sem packs, tudo continua tocando no sintetizador procedural.
-          <span className="controls">
-            <a className="ghost" href="#som-real" data-testid="samples-suggest-download">VER PACKS</a>
-            <button className="ghost" onClick={samples.dismissSuggestion} data-testid="samples-suggest-dismiss">
-              AGORA NÃO
-            </button>
-          </span>
-        </div>
-      )}
 
       <div className="controls">
         <button
@@ -500,9 +526,6 @@ function SessionBody() {
           <button className="ghost" onClick={() => setShowDiag((v) => !v)}>
             <DiagnosticsIcon size={14} /> {showDiag ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS (D)"}
           </button>
-          <button ref={helpBtnRef} className="ghost" onClick={() => setHelpOpen(true)} data-testid="help-open">
-            <HelpIcon size={14} /> AJUDA (?)
-          </button>
         </div>
         <p className="hint">
           Sem microfone? Use SING FIXTURE. Microfone e câmera ficam neste dispositivo
@@ -521,11 +544,14 @@ function SessionBody() {
         onResetStats={() => coach.resetStats()}
       />
 
-      <AutotunePanel
-        config={mic.autotune}
-        onChange={mic.updateAutotune}
-        keyLabel={keyLabel(cond.key.root, cond.key.mode)}
-      />
+      <details className="panel">
+        <summary data-testid="toggle-autotune">AUTOTUNE E CORREÇÃO VOCAL</summary>
+        <AutotunePanel
+          config={mic.autotune}
+          onChange={mic.updateAutotune}
+          keyLabel={keyLabel(cond.key.root, cond.key.mode)}
+        />
+      </details>
 
       {learn.enabled && (
         <LearnPanel
@@ -618,27 +644,26 @@ function SessionBody() {
       </section>
 
       <section className="panel" id="som-real" aria-label="Som real por samples">
-        <h2>SOM REAL (SAMPLES)</h2>
+        <h2>SOM REAL — JÁ INSTALADO</h2>
         <SamplePackPanel
           packs={samples.packs}
-          online={samples.online}
+          loadedCount={samples.loadedCount}
           onToggle={samples.setUseReal}
-          onDownload={(id) => void samples.download(id)}
         />
         <SampleCredits />
       </section>
 
-      <section className="panel" aria-label="Gesture conducting">
-        <h2>GESTURES</h2>
+      <details className="panel" aria-label="Gesture conducting">
+        <summary data-testid="toggle-gestures">GESTURES — REGER COM AS MÃOS</summary>
         <GesturePanel
           gestures={gestures}
           selected={cond.gestureSelected}
           onSelect={cond.setGestureSelected}
         />
-      </section>
+      </details>
 
-      <section className="panel" aria-label="Style and energy">
-        <h2>STYLE + ENERGY</h2>
+      <details className="panel" aria-label="Style and energy">
+        <summary data-testid="toggle-style">STYLE + ENERGY</summary>
         <div className="controls">
           <label>
             Style{" "}
@@ -669,7 +694,7 @@ function SessionBody() {
         <p className="meta" data-testid="energy">
           Energy {cond.energy01.toFixed(2)} ({cond.energyLevel}) · density {cond.density.toFixed(2)}
         </p>
-      </section>
+      </details>
 
       {showDiag && (
         <section className="panel" aria-label="Developer diagnostics" data-testid="diagnostics">

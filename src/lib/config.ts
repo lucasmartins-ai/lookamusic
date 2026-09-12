@@ -3,6 +3,8 @@
  * import from here. Values are Phase 1 defaults; later phases tune
  * experimentally and record changes in docs + TDRs.
  */
+import type { InstrumentId } from "@/domain/types";
+
 export const config = {
   audio: {
     /** Worklet analysis block in samples. 2048 @48k ≈ 43 ms per observation. */
@@ -186,6 +188,13 @@ export const config = {
     fingerExtendRatio: 1.12,
   },
   arrangement: {
+    /**
+     * Hotfix banda base: lineup padrão e teto do modo Auto. O usuário pediu
+     * "só violão, piano e bateria ativos" — o Auto (energia) NUNCA acrescenta
+     * fora deste trio; pins manuais continuam valendo (pedido explícito do
+     * usuário vence o Auto).
+     */
+    coreEnsemble: ["drums", "piano", "violao"] as readonly InstrumentId[],
     /** Phase 7+: transitions quantize to N bars. */
     transitionBars: 1,
     /** Phase 7+: fade length in beats applied at quantized entries/exits. */
@@ -247,6 +256,56 @@ export const config = {
       accordion: { osc: "square", cutoff: 2000, attack: 0.05, release: 0.4, detune: 8, octaveGain: 0 },
     },
     /**
+     * Hotfix modelos nativos: timbres REAIS construídos no engine (sem
+     * download, sem assets). Cada modelo é um banco de parciais aditivos com
+     * decaimento próprio + transiente de ruído (martelo/corda), o que dá
+     * corpo e "ataque de instrumento" ao som procedural. Sem entradas aqui,
+     * o engine volta ao oscilador simples (comportamento antigo intacto).
+     */
+    nativeModels: {
+      /**
+       * Piano: inarmônico leve (parciais esticadas), ataque de martelo e
+       * cauda longa nos parciais graves / curta nos agudos.
+       */
+      piano: {
+        partials: [
+          { ratio: 1, gain: 1.0, decaySec: 2.4 },
+          { ratio: 2.002, gain: 0.42, decaySec: 1.6 },
+          { ratio: 3.006, gain: 0.2, decaySec: 1.0 },
+          { ratio: 4.012, gain: 0.11, decaySec: 0.7 },
+          { ratio: 5.02, gain: 0.06, decaySec: 0.45 },
+          { ratio: 6.03, gain: 0.035, decaySec: 0.3 },
+        ],
+        noiseAttack: { durSec: 0.035, filterType: "bandpass", filterFreq: 2600, gain: 0.16 },
+        /** Escala do filtro por tom (agudo mais brilhante que o grave). */
+        brightnessPerOctave: 0.5,
+      },
+      /**
+       * Violão nylon: parciais pares dominantes (corda dedilhada), ataque de
+       * unha curto e cauda curta — dedilhado, não piano.
+       */
+      violao: {
+        partials: [
+          { ratio: 1, gain: 1.0, decaySec: 1.1 },
+          { ratio: 2.0, gain: 0.5, decaySec: 0.7 },
+          { ratio: 3.01, gain: 0.26, decaySec: 0.45 },
+          { ratio: 4.02, gain: 0.13, decaySec: 0.3 },
+          { ratio: 5.03, gain: 0.07, decaySec: 0.2 },
+        ],
+        noiseAttack: { durSec: 0.025, filterType: "highpass", filterFreq: 3200, gain: 0.2 },
+        brightnessPerOctave: 0.35,
+      },
+      /**
+       * Bateria: corpo membranoso harmônico por voz (modos de pele afinada),
+       * somado ao sweep + ruído que já existiam.
+       */
+      drums: {
+        kick: { partials: [{ ratio: 1, gain: 0.8, decaySec: 0.16 }, { ratio: 2.1, gain: 0.22, decaySec: 0.08 }] },
+        tom: { partials: [{ ratio: 1, gain: 0.7, decaySec: 0.3 }, { ratio: 2.3, gain: 0.25, decaySec: 0.16 }] },
+        cajon: { partials: [{ ratio: 1, gain: 0.6, decaySec: 0.2 }, { ratio: 2.6, gain: 0.2, decaySec: 0.1 }] },
+      },
+    },
+    /**
      * Hotfix som limpo: energia abaixo disto = piano em half-notes
      * sustentadas em vez de broken-chord corrido (menos notas rápidas).
      */
@@ -260,27 +319,25 @@ export const config = {
     /** Phase 6+: violin doubles melody on phrase-start bars only. */
     violinDoublesPhraseStarts: true,
     /**
-     * Phase 16+: sample packs (real sound) per instrument. The procedural
-     * `WebAudioSink` stays the automatic fallback: `useSamples` is only a
-     * *preference* — the sink still falls back to synthesis whenever the
-     * pack is absent, the download/decode fails, or |detune| exceeds
-     * `maxDetuneSt`. Guitar keeps synthesis (no license-clean pack).
-     * Weights are transfer budgets (single velocity layer, ogg/mp3).
+     * Phase 16+ / v1.3.3: sample packs (real sound). Desde a v1.3.3 os packs
+     * vêm EMPACOTADOS no app (`public/samples/**`, mesma origem) e carregam
+     * sozinhos no primeiro uso — não existe mais "baixar". O `WebAudioSink`
+     * nativo (modelos de parciais aditivos) segue como fallback automático:
+     * `useSamples` é só uma *preferência* — o sink cai no nativo sempre que o
+     * buffer não está decodificado, o decode falha ou |detune| passa de
+     * `maxDetuneSt`. Guitarra segue 100% nativa (sem pack com licença limpa).
+     * Os pesos são tetos de tamanho do bundle empacotado.
      */
     samples: {
       /** Cache API name (versioned key migrates between pack versions). */
       cacheName: "lookamusic-sample-packs",
       /**
-       * Bumped whenever a pack manifest changes incompatibly. v2 = caminhos
-       * reais (tonejs/Salamander + FreePats CC0); descarta o cache da v1, que
-       * apontava para URLs inexistentes.
+       * Bumped whenever a pack manifest changes incompatibly. v3 = packs
+       * EMPACOTADOS no app (`/samples/**`, mesma origem); descarta o bucket da
+       * v2, que guardava áudios remotos (liberava ~6 MB do usuário e evita
+       * qualquer chave remota órfã).
        */
-      cacheVersion: 2,
-      /**
-       * Fase 17: chave p/ lembrar que o usuário já viu a sugestão de packs
-       * logo depois de ligar o microfone (banner não-intrusivo, uma vez só).
-       */
-      promptStorageKey: "lookamusic-samples-prompt-dismissed-v1",
+      cacheVersion: 3,
       /** Max pitch correction applied via playbackRate (±st, else synth). */
       maxDetuneSt: 2,
       /** localStorage key for the per-instrument real/synth toggle. */
@@ -382,6 +439,34 @@ export const config = {
     /** Phase 11+: min and max allowed tempo in BPM. */
     minBpm: 30,
     maxBpm: 240,
+    /**
+     * Hotfix cantarolar: limpeza da melodia captada antes de virar música.
+     * O detector entrega uma nota por ataque estável; uma cantarolada de N
+     * notas pode virar N + fragmentos (respirações, oclusivas, flicker de
+     * semitom). Esta pós-limpeza entende repetição e padrão e devolve a
+     * contagem musical real — sem tocar no caminho reativo ao vivo.
+     */
+    humCleanup: {
+      /** Notas fechadas mais curtas que isto são flicker (não melodia). */
+      minNoteSec: 0.09,
+      /** Fragmentos da MESMA nota separados por menos que isto são uma nota. */
+      mergeGapSec: 0.32,
+      /**
+       * Órfã de semitom: uma nota curta (≤ este teto) entre duas notas de
+       * MESMO tom é flicker do detector (G4 → G#4 → G4), não melodia.
+       */
+      flickerMaxSec: 0.22,
+      /** Tolerância em semitons para considerar "mesmo tom" na limpeza. */
+      samePitchToleranceSt: 0.6,
+      /**
+       * Repetição: mesma nota re-articulada dentro desta janela (com um
+       * silêncio maior que `mergeGapSec`) ainda é o mesmo evento musical —
+       * o cantor se repetiu, não cantou duas notas.
+       */
+      repeatWindowSec: 0.6,
+      /** Confiança mínima para a nota sobreviver quando é um flicker curto. */
+      flickerMinConfidence: 0.5,
+    },
   },
   /**
    * Fase 17 (anti-feedback): aviso suave quando o microfone capta um nível

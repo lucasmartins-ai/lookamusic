@@ -18,7 +18,8 @@ test("recording and editor flow: record, edit timeline, quantize, regen and pers
   await page.getByTestId("btn-start-recording").click();
   await expect(page.getByTestId("btn-stop-recording")).toBeVisible();
 
-  // 3. Sing synthetic fixture
+  // 3. Sing synthetic fixture (v1.3.3 UX: vive no MODO AVANÇADO, recolhido)
+  await page.getByTestId("toggle-advanced").click();
   await page.getByTestId("fixture").click();
   await page.waitForTimeout(1000);
 

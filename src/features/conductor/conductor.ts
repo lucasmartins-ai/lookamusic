@@ -139,6 +139,14 @@ export class Conductor {
   private mixer: MixerState = defaultMixer();
   private readonly pinned = new Set<InstrumentId>();
   private energyMode: "auto" | EnergyLevel = "auto";
+  /**
+   * Hotfix cantarolar: mudo GLOBAL. Enquanto ligado, todo canal sai em ganho
+   * 0 — inclusive instrumentos que o Auto acrescentar depois (o usuário
+   * ouvia a banda tocar durante a captura, o que suja o microfone). Nunca é
+   * um mute por canal: um snapshot de mutes ficava dessincronizado assim que
+   * a energia adicionava uma voz nova.
+   */
+  private silenced = false;
   /** Phase 9: instrument the open/close gestures act on (SWIPE_LEFT/RIGHT cycle). */
   private readonly gestureSelection = new GestureSelection();
   private styleId: string;
@@ -385,6 +393,39 @@ export class Conductor {
     }
   }
 
+  /**
+   * Hotfix cantarolar: silencia/restaura a banda inteira. Silenciar antes de
+   * `start()` funciona porque o ganho é aplicado a cada engine (stub ou
+   * audio real) em `applyMixerToBand`; instrumentos que entrarem depois já
+   * nascem com ganho 0.
+   */
+  setBandSilenced(silenced: boolean): void {
+    this.silenced = silenced === true;
+    this.applyMixerToBand();
+  }
+
+  isBandSilenced(): boolean {
+    return this.silenced;
+  }
+
+  /**
+   * Hotfix cantarolar: começa uma tomada limpa. A melodia captada é zerada
+   * (contador de notas incluído) para que a segunda tentativa não some
+   * fragmentos da primeira — parte da contagem inflada (6 cantadas → 14
+   * "notas") vinha de tomadas acumuladas.
+   */
+  clearCapture(originSec?: number): void {
+    this.state.clearCapture();
+    this.engines.stabilizer.reset();
+    this.engines.phrases.reset();
+    this.engines.key.reset();
+    this.chordHistory.length = 0;
+    this.lastChord = undefined;
+    this.plannedBars.clear();
+    this.hotPickups.clear();
+    if (typeof originSec === "number") this.transport.reset(originSec);
+  }
+
   /** Instrument the open/close gestures currently act on. */
   gestureSelected(): InstrumentId {
     return this.gestureSelection.current();
@@ -449,7 +490,13 @@ export class Conductor {
   }
 
   private applyLevel(level: EnergyLevel, barFloat: number): void {
-    const want = new Set<InstrumentId>(ensembleForEnergy(level));
+    // Hotfix banda base: o Auto nunca passa do trio configurado (bateria +
+    // piano + violão). Um pin manual (o usuário ligou a voz) continua
+    // valendo — pedido explícito vence o Auto.
+    const core = new Set<InstrumentId>(config.arrangement.coreEnsemble);
+    const want = new Set<InstrumentId>(
+      ensembleForEnergy(level).filter((id) => core.has(id) || this.pinned.has(id)),
+    );
     const bpm = this.engines.tempo.state().playback;
     const snap = this.engines.arrangement.snapshot();
     this.engines.arrangement.setEnergy(densityForEnergy(level));
@@ -468,7 +515,7 @@ export class Conductor {
    * when drums are out of the lineup.
    */
   private maybeHotPickup(note: NoteEvent): void {
-    if (this.disposed) return;
+    if (this.disposed || this.silenced) return;
     if (!Number.isFinite(note.startTime)) return;
     if (!this.engines.arrangement.snapshot().active.drums) return;
     const bar = Math.floor(this.transport.barFloatAt(note.startTime));
@@ -644,7 +691,9 @@ export class Conductor {
 
   private applyMixerToBand(): void {
     for (const id of Object.keys(this.opts.band) as InstrumentId[]) {
-      this.opts.band[id]?.setVolume(effectiveVolume(this.mixer, id));
+      // Silenciado: ganho 0 independentemente do mixer/lineup — nenhuma voz
+      // que entrar depois consegue soar durante a captura.
+      this.opts.band[id]?.setVolume(this.silenced ? 0 : effectiveVolume(this.mixer, id));
       const ch = (this.mixer as Record<string, { pan: number }>)[id];
       if (ch) this.opts.band[id]?.setPan(ch.pan);
     }

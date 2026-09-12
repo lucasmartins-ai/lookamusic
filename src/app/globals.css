@@ -1,14 +1,21 @@
-/* LOOKAMUSIC — dark premium instrument identity (§34). Restrained, engineered. */
+/*
+ * LOOKAMUSIC — dark premium instrument identity (§34). Restrained, engineered.
+ *
+ * v1.3.3 (pedido do usuário: "aqueles textos azul não tá legal"): a paleta
+ * neutra era AZULADA (painéis #161924, linha #262c3e, muted #9aa4b7) e ficava
+ * brigando com o acento âmbar. Agora todos os neutros são QUENTES (cinza-
+ * marrom de amplificador valvulado) — o âmbar virou a única "cor" da tela.
+ */
 
 :root {
-  --bg: #0c0e14;
-  --panel: #161924;
-  --panel-2: #1b1f2e;
-  --panel-recessed: #0a0c12;
-  --line: #262c3e;
-  --text: #edf0f7;
-  --muted: #9aa4b7;
-  --faint: #5b6579;
+  --bg: #100e0c;
+  --panel: #1a1714;
+  --panel-2: #201c18;
+  --panel-recessed: #0c0a09;
+  --line: #2e2925;
+  --text: #f4f0e9;
+  --muted: #a89f95;
+  --faint: #6e655c;
   --accent: #f59e0b;
   --accent-glow: rgba(245, 158, 11, 0.35);
   --accent-dim: #8b5505;
@@ -31,12 +38,43 @@
   box-sizing: border-box;
 }
 
+/*
+ * v1.3.3: âncoras não tinham estilo NENHUM — o azul sublinhado padrão do
+ * navegador aparecia nos créditos das fontes de som e nos avisos. Agora são
+ * âmbar discreto, com realce no hover e foco visível preservado.
+ */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-dim);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+a:hover {
+  color: #fbbf24;
+  border-bottom-color: var(--accent);
+}
+
+/* Botões-estilo link (ghost) não devem ganhar sublinhado nem perder o card. */
+a.ghost,
+a.primary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+a.primary {
+  border-bottom-color: #f59e0b;
+}
+
+a.skip-link {
+  border-bottom: none;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   background: var(--bg);
-  background-image: radial-gradient(circle at 50% 0%, #181d2a 0%, #0c0e14 70%);
+  background-image: radial-gradient(circle at 50% 0%, #231e19 0%, #100e0c 70%);
   color: var(--text);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
@@ -55,7 +93,7 @@ header.brand {
   gap: 16px;
   flex-wrap: wrap;
   padding: 16px 20px;
-  background: linear-gradient(180deg, #181c28 0%, #12151f 100%);
+  background: linear-gradient(180deg, #1f1b17 0%, #151211 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--neu-flat);
@@ -93,7 +131,7 @@ header.brand {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #374151;
+  background: #453d36;
   display: inline-block;
   margin-right: 6px;
   vertical-align: 1px;
@@ -106,7 +144,7 @@ header.brand {
 }
 
 section.panel {
-  background: linear-gradient(180deg, #171b26 0%, #12141d 100%);
+  background: linear-gradient(180deg, #1e1a16 0%, #141110 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 22px;
@@ -121,6 +159,76 @@ section.panel h2 {
   color: #f59e0b;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+/*
+ * v1.3.3 (UX): a sessão empilhava ~9 painéis abertos de uma vez e a ação
+ * principal (cantarolar → tocar a banda) competia com ajustes avançados.
+ * O que é secundário vira `<details>` fechado, com o mesmo visual de painel e
+ * o título como resumo clicável.
+ */
+details.panel > summary {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+details.panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.panel > summary::after {
+  content: "▸";
+  color: var(--muted);
+}
+
+details.panel[open] > summary::after {
+  content: "▾";
+}
+
+details.panel > summary:hover {
+  color: #fbbf24;
+}
+
+/* Fluxo principal: trilha de passos 1 → 2 com o passo atual em destaque. */
+.flow-steps {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 12px;
+}
+
+.flow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--panel-recessed);
+}
+
+.flow-step.now {
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.flow-step.done {
+  color: var(--good);
+  border-color: var(--good);
 }
 
 .now-singing {
@@ -325,7 +433,7 @@ button {
   font-weight: 600;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, #232838 0%, #191d29 100%);
+  background: linear-gradient(180deg, #262220 0%, #1b1815 100%);
   color: var(--text);
   padding: 10px 18px;
   cursor: pointer;
@@ -340,7 +448,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: linear-gradient(180deg, #2b3246 0%, #1e2332 100%);
+  background: linear-gradient(180deg, #332d27 0%, #221d19 100%);
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.65), -3px -3px 8px rgba(255, 255, 255, 0.06);
 }
@@ -389,7 +497,7 @@ button:disabled {
 button.primary {
   background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
   border: 1px solid #f59e0b;
-  color: #12141a;
+  color: #16120f;
   font-weight: 700;
   min-width: 170px;
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.35), var(--neu-button);
@@ -722,15 +830,15 @@ kbd {
 
 /* ---- Retro Hi-Fi & Neumorphic Utility Classes ---- */
 .neu-well {
-  background: #090b10;
-  border: 1px solid #1a1e2b;
+  background: #0d0b0a;
+  border: 1px solid #211d19;
   border-radius: 8px;
   box-shadow: var(--neu-inset);
 }
 
 .retro-card {
-  background: linear-gradient(180deg, #1d212e 0%, #151822 100%);
-  border: 1px solid #282f42;
+  background: linear-gradient(180deg, #231f1b 0%, #191512 100%);
+  border: 1px solid #312b25;
   border-radius: 10px;
   padding: 16px;
   box-shadow: var(--neu-flat);
@@ -740,14 +848,14 @@ kbd {
 .retro-card:hover {
   transform: translateY(-2px);
   box-shadow: 6px 8px 18px rgba(0, 0, 0, 0.65), -3px -3px 8px rgba(255, 255, 255, 0.05);
-  border-color: #3d4660;
+  border-color: #4a423a;
 }
 
 .pilot-jewel {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #252b38;
+  background: #2a2520;
   display: inline-block;
   border: 1px solid #000;
   box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.25);
@@ -773,8 +881,8 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: linear-gradient(180deg, #242a3a 0%, #171b26 100%);
-  border: 1px solid #333a4f;
+  background: linear-gradient(180deg, #2a2521 0%, #1e1a16 100%);
+  border: 1px solid #3a342d;
   border-radius: 6px;
   padding: 4px 10px;
   font-family: var(--mono);

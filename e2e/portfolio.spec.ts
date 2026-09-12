@@ -34,7 +34,9 @@ test.describe("Portfolio release smoke test & demo visual suite", () => {
     await page.screenshot({ path: path.join(demoDir, "01-home.png"), fullPage: false });
 
     // 2. Conductor Session with synthetic singing fixture
+    // (v1.3.3 UX: o conductor reativo e os gestos começam recolhidos.)
     await page.goto("/session");
+    await page.getByTestId("toggle-advanced").click();
     await expect(page.getByTestId("transport")).toBeVisible();
     await expect(page.getByTestId("key")).toHaveText("C major");
     await expect(page.getByTestId("chord")).toHaveText("—");
@@ -50,7 +52,8 @@ test.describe("Portfolio release smoke test & demo visual suite", () => {
     await page.getByTestId("band-bass").click();
     await page.getByTestId("band-piano").click();
 
-    // Select gesture
+    // Select gesture (painel de gestos recolhido por padrão na v1.3.3)
+    await page.getByTestId("toggle-gestures").click();
     await page.getByTestId("gesture-btn-OPEN_HAND").click();
 
     await page.screenshot({ path: path.join(demoDir, "02-conductor-session.png"), fullPage: false });
@@ -73,6 +76,7 @@ test.describe("Portfolio release smoke test & demo visual suite", () => {
     // Record in session to have a structured project
     await page.goto("/session");
     await page.getByTestId("btn-start-recording").click();
+    await page.getByTestId("toggle-advanced").click();
     await page.getByTestId("fixture").click();
     await page.waitForTimeout(600);
     await page.getByTestId("btn-stop-recording").click();

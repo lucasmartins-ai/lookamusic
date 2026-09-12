@@ -6,6 +6,8 @@
  * npm test -- instruments-samples
  */
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { config } from "@/lib/config";
 import { FakeSink } from "../helpers/fake-sink";
 import { demoPassage, scheduleCtx } from "../helpers/passage";
@@ -458,8 +460,8 @@ describe("integration: 2-bar piano+violão render", () => {
 
 /* ---------- weights + wiring ---------- */
 
-describe("weights: transfer budgets respected", () => {
-  it("piano ≤ 2 MB, violão ≤ 3 MB, bateria ≤ 2 MB", () => {
+describe("weights: bundled pack size stays inside the budget", () => {
+  it("piano ≤ 2 MB, violão ≤ 5 MB, bateria ≤ 2 MB", () => {
     expect(PIANO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("piano"));
     expect(weightBudgetOf("piano")).toBe(2 * 1024 * 1024);
     expect(VIOLAO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("violao"));
@@ -468,31 +470,38 @@ describe("weights: transfer budgets respected", () => {
     expect(weightBudgetOf("drums")).toBe(2 * 1024 * 1024);
   });
 
-  it("packs are remote-only (https, never bundled local assets)", () => {
+  it("packs vêm EMPACOTADOS no app (mesma origem, nunca remoto)", () => {
+    // v1.3.3 (pedido do usuário: "quero que venha já instalado"): os packs
+    // deixaram de ser remotos — se algum URL voltar a apontar para fora, o
+    // app deixa de funcionar offline e não há mais clique de download.
     const urls = [
       ...PIANO_PACK.notes.map((n) => n.url),
       ...VIOLAO_PACK.notes.map((n) => n.url),
       ...DRUMS_PACK.voices.map((v) => v.url),
     ];
     expect(urls.length).toBeGreaterThan(0);
-    for (const u of urls) expect(u.startsWith("https://")).toBe(true);
+    for (const u of urls) {
+      expect(u.startsWith("/samples/")).toBe(true);
+      expect(u).not.toMatch(/^https?:/);
+    }
   });
 
-  it("every pack URL is fetch-safe (no raw '#' fragment, no spaces, decodable)", () => {
-    // Regression: a raw `#` truncates the path (FreePats ships `C#2.flac`),
-    // which made every download 404. Sharps must be percent-encoded.
+  it("todo URL de pack existe de fato em public/ (manifest ↔ bundle)", () => {
+    // O erro clássico de pack empacotado é o manifest apontar para um arquivo
+    // que não foi copiado; aqui o teste falha no CI em vez de silenciar a
+    // amostra no aparelho do usuário.
     const urls = [
       ...PIANO_PACK.notes.map((n) => n.url),
       ...VIOLAO_PACK.notes.map((n) => n.url),
       ...DRUMS_PACK.voices.map((v) => v.url),
     ];
+    expect(urls.length).toBe(87);
     for (const u of urls) {
       expect(u).not.toContain("#");
       expect(u).not.toContain(" ");
       expect(() => decodeURIComponent(u)).not.toThrow();
+      expect(existsSync(join(process.cwd(), "public", u))).toBe(true);
     }
-    // The guitar pack genuinely contains encoded sharps.
-    expect(VIOLAO_PACK.notes.some((n) => n.url.includes("%23"))).toBe(true);
   });
 
   it("guitar keeps synthesis (no pack, flag off)", () => {

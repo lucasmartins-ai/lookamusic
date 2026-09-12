@@ -59,8 +59,8 @@ export function RetroVuMeter({
     <div
       className={`retro-vu-chassis ${className}`}
       style={{
-        background: "linear-gradient(180deg, #1b1e25 0%, #13151b 100%)",
-        border: "1px solid #2d323f",
+        background: "linear-gradient(180deg, #1c1815 0%, #141210 100%)",
+        border: "1px solid #2e2925",
         boxShadow: "inset 1px 1px 2px rgba(255,255,255,0.06), 4px 4px 12px rgba(0,0,0,0.5)",
         borderRadius: "8px",
         padding: isCompact ? "8px" : "12px",
@@ -74,8 +74,8 @@ export function RetroVuMeter({
       aria-label={`${label} VU Meter`}
     >
       {/* Screw accents */}
-      <div style={{ position: "absolute", top: 4, left: 4, width: 4, height: 4, borderRadius: "50%", background: "#4a5160" }} />
-      <div style={{ position: "absolute", top: 4, right: 4, width: 4, height: 4, borderRadius: "50%", background: "#4a5160" }} />
+      <div style={{ position: "absolute", top: 4, left: 4, width: 4, height: 4, borderRadius: "50%", background: "#4a423a" }} />
+      <div style={{ position: "absolute", top: 4, right: 4, width: 4, height: 4, borderRadius: "50%", background: "#4a423a" }} />
 
       {/* Meter Display Window */}
       <div
@@ -84,7 +84,7 @@ export function RetroVuMeter({
           height: isCompact ? "65px" : "85px",
           background: "radial-gradient(ellipse at 50% 90%, #fff8d6 0%, #ecdcb0 55%, #dfce9f 100%)",
           borderRadius: "6px 6px 4px 4px",
-          border: "2px solid #0f1115",
+          border: "2px solid #100e0c",
           boxShadow: "inset 2px 2px 5px rgba(0,0,0,0.4), inset -2px -2px 4px rgba(255,255,255,0.2)",
           position: "relative",
           overflow: "hidden",
@@ -184,13 +184,13 @@ export function RetroVuMeter({
             fontSize: "9px",
             fontWeight: 700,
             letterSpacing: "0.15em",
-            color: "#8a94a6",
+            color: "#a89f95",
           }}
         >
           {label}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <span style={{ fontSize: "8px", fontWeight: 700, color: "#6b7280", letterSpacing: "0.1em" }}>PEAK</span>
+          <span style={{ fontSize: "8px", fontWeight: 700, color: "#6e655c", letterSpacing: "0.1em" }}>PEAK</span>
           <div
             style={{
               width: "7px",

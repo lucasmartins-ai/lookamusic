@@ -311,7 +311,7 @@ export function TimelineEditor({
                   width: `${widthPercent}%`,
                   top: "20px",
                   height: "50px",
-                  background: isSelected ? "var(--accent)" : "linear-gradient(180deg, #2a3142 0%, #1e2330 100%)",
+                  background: isSelected ? "var(--accent)" : "linear-gradient(180deg, #2b2622 0%, #1f1b17 100%)",
                   color: isSelected ? "#000" : "var(--text)",
                   border: isSelected ? "2px solid #fff" : "1px solid var(--line)",
                   borderRadius: "4px",

@@ -48,6 +48,8 @@ test("session: educational mode toggle displays/hides contextual panel", async (
   await expect(page.getByTestId("learn-primary-title")).toBeVisible();
 
   // Sing synthetic fixture to verify live contextual explanation
+  // (v1.3.3 UX: o expedidor reativo vive no MODO AVANÇADO, recolhido.)
+  await page.getByTestId("toggle-advanced").click();
   await page.getByTestId("fixture").click();
   await expect(page.getByTestId("learn-primary-summary")).not.toBeEmpty();
 

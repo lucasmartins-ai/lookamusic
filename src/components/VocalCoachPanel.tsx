@@ -41,22 +41,23 @@ export function VocalCoachPanel({
   // Needle position from 0% to 100% (0 cents = 50%)
   const needlePercent = ((clampedCents + 50) / 100) * 100;
 
-  let gaugeColor = "#5d6370"; // unvoiced / neutral gray
+  // v1.3.3: cores derivadas dos tokens do tema (nada de paleta paralela).
+  let gaugeColor = "var(--faint)"; // sem voz / neutro
   let statusBadge = "AGUARDANDO VOZ";
   if (state === "in-tune") {
-    gaugeColor = "#22c55e"; // green
+    gaugeColor = "var(--good)";
     statusBadge = "AFINADO";
   } else if (state === "out-of-key") {
-    gaugeColor = "#eab308"; // yellow/amber
+    gaugeColor = "var(--warn)";
     statusBadge = "FORA DO TOM";
   } else if (state === "flat") {
-    gaugeColor = "#f59e0b"; // amber
+    gaugeColor = "var(--accent)";
     statusBadge = "BEMOL (BAIXO)";
   } else if (state === "sharp") {
-    gaugeColor = "#f43f5e"; // rose/coral
+    gaugeColor = "var(--bad)";
     statusBadge = "SUSTENIDO (ALTO)";
   } else if (state === "unclear") {
-    gaugeColor = "#a855f7"; // purple
+    gaugeColor = "var(--faint)";
     statusBadge = "INSTÁVEL";
   }
 
@@ -66,9 +67,8 @@ export function VocalCoachPanel({
       aria-label="Vocal Coach e Afinador"
       data-testid="vocal-coach-panel"
       style={{
-        background: "rgba(22, 27, 34, 0.75)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid #30363d",
+        background: "var(--panel)",
+        border: "1px solid var(--line)",
         borderRadius: "8px",
         padding: "16px",
         margin: "12px 0",
@@ -95,7 +95,7 @@ export function VocalCoachPanel({
               padding: "2px 6px",
               borderRadius: "4px",
               background: gaugeColor,
-              color: "#0d1117",
+              color: "var(--panel-recessed)",
               fontWeight: 800,
               letterSpacing: "0.05em",
             }}
@@ -106,11 +106,11 @@ export function VocalCoachPanel({
           <span
             style={{
               fontSize: "11px",
-              color: "#8b949e",
+              color: "var(--muted)",
               fontWeight: 600,
             }}
           >
-            Precisão: <strong style={{ color: "#e6edf3" }}>{accuracyScore}%</strong>
+            Precisão: <strong style={{ color: "var(--text)" }}>{accuracyScore}%</strong>
           </span>
           {onResetStats && (
             <button
@@ -140,23 +140,23 @@ export function VocalCoachPanel({
             fontSize: "36px",
             fontWeight: 800,
             fontFamily: "ui-monospace, monospace",
-            color: inTune ? "#22c55e" : "#f0f6fc",
+            color: inTune ? "var(--good)" : "var(--text)",
             minWidth: "70px",
             textAlign: "center",
-            textShadow: inTune ? "0 0 12px rgba(34, 197, 94, 0.4)" : "none",
+            textShadow: inTune ? "0 0 12px rgba(52, 211, 153, 0.4)" : "none",
             transition: "color 0.15s ease",
           }}
           data-testid="coach-target-note"
         >
           {targetNote}
         </div>
-        <div style={{ fontSize: "12px", color: "#8b949e", fontFamily: "ui-monospace, monospace" }}>
+        <div style={{ fontSize: "12px", color: "var(--muted)", fontFamily: "ui-monospace, monospace" }}>
           {targetFreq > 0 ? `${targetFreq.toFixed(1)} Hz` : "—"}
           {cents !== 0 && (
             <span
               style={{
                 marginLeft: "8px",
-                color: inTune ? "#22c55e" : gaugeColor,
+                color: inTune ? "var(--good)" : gaugeColor,
                 fontWeight: 700,
               }}
             >
@@ -175,14 +175,14 @@ export function VocalCoachPanel({
             display: "flex",
             justifyContent: "space-between",
             fontSize: "10px",
-            color: "#6e7681",
+            color: "var(--faint)",
             fontFamily: "ui-monospace, monospace",
             marginBottom: "4px",
           }}
         >
           <span>♭ -50¢</span>
           <span>-25¢</span>
-          <span style={{ color: "#22c55e", fontWeight: 700 }}>0¢ (PERFEITO)</span>
+          <span style={{ color: "var(--good)", fontWeight: 700 }}>0¢ (PERFEITO)</span>
           <span>+25¢</span>
           <span>+50¢ ♯</span>
         </div>
@@ -191,11 +191,11 @@ export function VocalCoachPanel({
         <div
           style={{
             height: "14px",
-            background: "#161b22",
+            background: "var(--panel-recessed)",
             borderRadius: "7px",
             position: "relative",
             overflow: "hidden",
-            border: "1px solid #30363d",
+            border: "1px solid var(--line)",
           }}
         >
           {/* In-tune sweet spot (center +-12 cents = 38% to 62%) */}
@@ -205,9 +205,9 @@ export function VocalCoachPanel({
               left: "38%",
               width: "24%",
               height: "100%",
-              background: "rgba(34, 197, 94, 0.25)",
-              borderLeft: "1px dashed rgba(34, 197, 94, 0.5)",
-              borderRight: "1px dashed rgba(34, 197, 94, 0.5)",
+              background: "rgba(52, 211, 153, 0.22)",
+              borderLeft: "1px dashed rgba(52, 211, 153, 0.5)",
+              borderRight: "1px dashed rgba(52, 211, 153, 0.5)",
             }}
           />
 
@@ -219,7 +219,7 @@ export function VocalCoachPanel({
               top: 0,
               bottom: 0,
               width: "2px",
-              background: "#22c55e",
+              background: "var(--good)",
               transform: "translateX(-50%)",
             }}
           />
@@ -250,11 +250,11 @@ export function VocalCoachPanel({
         role="status"
         aria-live="polite"
         style={{
-          background: "rgba(13, 17, 23, 0.6)",
+          background: "var(--panel-recessed)",
           padding: "10px 14px",
           borderRadius: "6px",
           fontSize: "12px",
-          color: "#e6edf3",
+          color: "var(--text)",
           borderLeft: `4px solid ${gaugeColor}`,
           display: "flex",
           justifyContent: "space-between",
@@ -270,7 +270,7 @@ export function VocalCoachPanel({
           <span
             style={{
               fontSize: "11px",
-              color: "#22c55e",
+              color: "var(--good)",
               fontWeight: 700,
               whiteSpace: "nowrap",
               display: "inline-flex",

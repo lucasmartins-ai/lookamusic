@@ -2,27 +2,27 @@
  * Violão sample pack: FreePats Spanish Classical Guitar (nylon).
  * License CC0 — no credit required (we credit anyway).
  *
- * Hosting: `raw.githubusercontent.com/freepats/spanish-classical-guitar`
- * (sends `access-control-allow-origin: *`). Upstream ships lossless FLAC, so
- * the download is larger than a compressed pack; the transfer budget in
- * `config.instruments.samples.violao` reflects the real weight.
+ * ENTREGUE COM O APP (v1.3.3): os áudios vivem em `public/samples/violao/` e
+ * carregam da mesma origem — sem clique em "baixar", sem CORS, sem rede.
+ * O FLAC lossless upstream foi transcodificado para mp3 mono 128 kbps, 4 s com
+ * fade (`scripts/fetch-sample-packs.mjs`): mesma sonoridade de dedilhado num
+ * arquivo ~6× menor, decodificável por todos os webviews alvo.
  *
- * Sharp notes live in files named `C#2.flac` etc. — `#` MUST be
- * percent-encoded (`%23`) or the URL fragment truncates the path to 404.
- * Remote-only, consent-gated, never bundled.
+ * Nomes locais usam `s` para sustenidos (`Cs2.mp3`) — URL nunca leva `#`, que
+ * truncaria o caminho como fragmento (bug real do pack remoto).
  */
 import type { PitchedPackManifest } from "./types";
 
-const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
+const NAMES = ["C", "Cs", "D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"] as const;
 
-/** Upstream file name: sharps as `#`, percent-encoded for the URL. */
+/** Nome local do sample: sustenido como `s` (nunca `#`). */
 function sampleFile(midi: number): string {
   const pc = ((Math.round(midi) % 12) + 12) % 12;
   const octave = Math.floor(Math.round(midi) / 12) - 1;
-  return encodeURIComponent(`${NAMES[pc]}${octave}.flac`);
+  return `${NAMES[pc]}${octave}.mp3`;
 }
 
-const BASE_URL = "https://raw.githubusercontent.com/freepats/spanish-classical-guitar/HEAD/samples";
+const BASE_URL = "/samples/violao";
 
 /**
  * The exact MIDI notes upstream recorded (G1…C6). Kept explicit so a typo'd
@@ -46,7 +46,7 @@ export const VIOLAO_PACK: PitchedPackManifest = {
   kind: "pitched",
   packId: "freepats-spanish-classical-guitar",
   instrument: "violao",
-  version: 2,
+  version: 3,
   license: "CC0",
   attribution:
     "FreePats Spanish Classical Guitar — CC0 (https://github.com/freepats/spanish-classical-guitar)",
@@ -55,6 +55,6 @@ export const VIOLAO_PACK: PitchedPackManifest = {
   // Coverage window: every MIDI here is within ±2 st of a real sample.
   range: { minMidi: 29, maxMidi: 86 },
   notes: buildNotes(),
-  // 48 lossless FLAC one-shots (~80 KB each) ≈ 3.8 MB.
-  totalBytesEstimate: 3_900_000,
+  // 48 mp3 mono empacotados (~48 KB cada, 4 s) ≈ 2,3 MB no instalador.
+  totalBytesEstimate: 2_350_000,
 };

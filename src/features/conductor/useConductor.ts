@@ -94,11 +94,16 @@ function stubBand(): Record<InstrumentId, InstrumentEngine> {
 
 const DEFAULT_KEY: KeyEstimate = { root: 0, mode: "major", confidence: 0 };
 
+/**
+ * Hotfix banda base (pedido do usuário): só bateria, piano e violão entram
+ * ligados. O Auto (energia) nunca acrescenta fora do trio — ver
+ * `config.arrangement.coreEnsemble`; ligar à mão continua possível.
+ */
 const INITIAL_ACTIVE: Record<InstrumentId, boolean> = {
   drums: true,
-  bass: true,
+  bass: false,
   piano: true,
-  guitar: true,
+  guitar: false,
   violao: true,
   strings: false,
   violin: false,
@@ -300,6 +305,18 @@ export function useConductor() {
     refresh();
   }, [ensureAudio, refresh]);
 
+  /** Hotfix cantarolar: mudo global da banda (inclusive vozes futuras). */
+  const setBandSilenced = useCallback((silenced: boolean) => {
+    ensureAudio();
+    condRef.current?.setBandSilenced(silenced);
+    refresh();
+  }, [ensureAudio, refresh]);
+
+  const clearCapture = useCallback(() => {
+    condRef.current?.clearCapture(performance.now() / 1000);
+    refresh();
+  }, [refresh]);
+
   const setStyle = useCallback((id: string) => {
     condRef.current?.setStyle(id);
     setSnap((p) => ({ ...p, styleId: condRef.current?.getStyleId() ?? id }));
@@ -341,6 +358,8 @@ export function useConductor() {
     setEnergyMode,
     setGestureSelected,
     ensureAudio,
+    setBandSilenced,
+    clearCapture,
     start,
     stop,
     injectFixture,

@@ -49,29 +49,31 @@ inside the app (`/compose`), or clear site data in the browser settings
 (Chrome: Settings → Privacy → Delete browsing data → hosted app data).
 There is no server copy to request — because none exists.
 
-## Real instrument sound — optional sample packs (Phase 16)
+## Real instrument sound — native models + bundled packs (Phase 16 / v1.3.3)
 
-Piano, violão and drums can sound like real recorded instruments instead of
-the built-in procedural synthesis. This works as follows, with no change to
-the guarantees above:
+Piano, violão and drums sound like real instruments. Nothing is requested
+from the network and nothing is uploaded — the guarantees above are intact:
 
-- **100% on-device after an opt-in download.** By default nothing is
-  downloaded and everything sounds exactly as before (procedural synthesis).
-  Real sounds arrive **only when you tap "BAIXAR SOM REAL"** for an
-  instrument in `/session` → SOM REAL (SAMPLES) — never automatically,
-  never silently.
-- **What is downloaded:** only compressed audio one-shots/notes from the
-  hosts documented in the pack manifests and the in-app credits screen
-  (Salamander piano, via the tonejs audio mirror; FreePats nylon guitar and
-  percussion). No microphone audio, no usage
-  data and no identifier is sent — these are plain file downloads, and a
-  failed/blocked download simply keeps the procedural sound.
-- **Where packs live:** decoded in memory + the browser `Cache API` on this
-  device (PWA offline-first: downloaded packs keep playing offline). Clear
-  site data to remove them. Nothing is uploaded anywhere, ever.
-- **Per-instrument choice:** the "Som real / Sintetizador" toggle (default:
-  real when the pack exists) applies instantly and is stored in
-  `localStorage` on this browser only.
+- **Shipped inside the app (v1.3.3).** The recorded one-shots live in
+  `public/samples/**` and are served from the app's own origin (web/PWA and
+the desktop installer). There is **no download step, no "consent" button and
+  no network request** to play them: the app decodes its own files on first
+  use and keeps playing offline forever.
+- **Native additive models (default fallback).** When a recorded buffer is
+  still decoding — or the runtime cannot decode mp3 — the engine synthesizes
+  the instrument from an additive partial bank defined in code. That is why
+  there is never silence and never an error dialog: the sound is always
+  available on-device.
+- **What is bundled:** only compressed audio notes/one-shots from the sources
+  credited on the in-app credits screen (Salamander Grand Piano, CC-BY-3.0;
+  FreePats nylon guitar and percussion, CC0). Repackaged to mono mp3 with a
+  fade (see `scripts/fetch-sample-packs.mjs`); no microphone audio, no usage
+  data, no identifier.
+- **Where packs live:** decoded in memory (and optionally the browser
+  `Cache API`) on this device. Clear site data to remove them. Nothing is
+  uploaded anywhere, ever.
+- **Per-instrument choice:** the "Som real / Sintetizador" toggle applies
+  instantly and is stored in `localStorage` on this browser only.
 
 ## If you deny permission
 

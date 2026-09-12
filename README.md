@@ -5,7 +5,7 @@
 
 [![Build](https://img.shields.io/badge/Next.js-16_Turbopack-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6_Strict-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/Tests-668_Unit_%7C_11_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-682_Unit_%7C_12_E2E-success?style=flat&logo=vitest)](https://vitest.dev/)
 [![Latency](https://img.shields.io/badge/Latency_p95-<0.5ms_pipeline-brightgreen?style=flat)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25_On--Device_Local-blueviolet?style=flat)](PRIVACY.md)
 [![PWA](https://img.shields.io/badge/PWA-Offline--First_100%25-orange?style=flat&logo=pwa)](public/manifest.json)
@@ -13,6 +13,15 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
+
+## 📢 Release v1.3.3 — Som real já instalado, cantarolar mudo e visual novo
+
+- **Som real JÁ VEM INSTALADO.** Os áudios de piano, violão e bateria agora são **empacotados no aplicativo** (`public/samples/**`, mesma origem) e carregam sozinhos: **acabou o botão de baixar** que não funcionava. Funciona offline, no primeiro segundo, sem clique.
+- **Modelos nativos como base.** O engine ganhou bancos de **parciais aditivos + transiente de ataque** (martelo, unha, pele), então a banda nunca depende de asset para soar como instrumento.
+- **Cantarolar é 100% mudo.** Mudo **global** no conductor: a energia (modo Auto) não liga mais vozes por cima do microfone. Nada toca até você apertar **TOCAR A BANDA**.
+- **6 notas cantadas = 6 notas na banda.** Contagem reiniciada a cada tomada + limpeza de **padrão e repetição** da melodia (fragmentos fundidos, flicker de semitom descartado, repetição = uma nota).
+- **Trio de base por padrão:** só **bateria, piano e violão** — o Auto nunca passa disso.
+- **UX e visual:** o **MODO AVANÇADO** (conductor reativo + gestos + autotune) começa recolhido, o fluxo principal mostra os passos 1→2→3, a ajuda ficou sempre à vista e a paleta deixou de ser azulada (neutros quentes + âmbar; links não são mais o azul padrão do navegador).
 
 ## 📢 Release v1.3.2 — Correções: Cantarolar Primeiro toca a banda & som real baixa de verdade
 
@@ -58,7 +67,7 @@ Esta versão consolida a evolução da plataforma com foco em **baixo consumo de
 - **Adeus ao Peso do Electron:** Substitui a sobrecarga de empacotar um navegador Chromium inteiro. O Tauri v2 utiliza o motor nativo de cada sistema (WKWebView no macOS, WebView2 no Windows e WebKitGTK no Linux).
 - **Comparativo Técnico:**
   - **Uso de Memória RAM:** Cai de ~350 MB (Electron) para **~35 MB (Tauri v2)**.
-  - **Tamanho do Binário / Instalador:** Reduzido de ~150 MB para **~12 MB**.
+  - **Tamanho do Binário / Instalador:** Reduzido de ~150 MB para **~16 MB** (a partir da v1.3.3 os ~4,3 MB de samples de som real viajam dentro do app, já instalados).
   - **Inicialização:** Abertura quase instantânea (< 400ms).
 - **Entitlements e Permissões:** Permissões transparentes de microfone e câmera no macOS via `Info.plist` e Hardened Runtime.
 
@@ -171,7 +180,7 @@ npm run desktop:dist:linux   # Gera instalador Linux
 | Rota | Descrição | Destaques Técnicos |
 |---|---|---|
 | [`/`](src/app/page.tsx) | **Início & Sintonizador Analógico** | Onboarding guiado, medidor VU retro, sintonizador dial, visualizador de pitch e status de áudio. |
-| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Fluxo padrão **CANTAROLAR PRIMEIRO** (captura em silêncio → banda em loop, sem feedback) e o modo **AVANÇADO** reativo por trás dele, com banner de aviso; faixa de diagnóstico sempre visível (nota, confiança, trava, som real/synth, latência) e aviso suave de feedback. Regente voz→banda ao vivo, hot pickup em 50ms, 8 instrumentos, Autotune, Vocal Coach e regência por gestos. Seção **SOM REAL (SAMPLES)**: piano/violão/bateria com som real via packs opt-in (toggle instantâneo real/sintetizador, download só com o seu toque, créditos CC-BY na tela). |
+| [`/session`](src/app/session/page.tsx) | **Estúdio do Regente** | Fluxo padrão **CANTAROLAR PRIMEIRO** com captura **totalmente muda** (mudo global, sem Auto ligando vozes por cima do mic) → limpeza de **padrão/repetição** da melodia (6 notas cantadas viram 6) → banda em loop para você acompanhar; o modo **AVANÇADO** reativo segue atrás, com banner de aviso. Trio de base (**bateria + piano + violão**) com teto no Auto. Instrumentos soam em **modelos nativos reais** (parciais aditivos, zero download); seção **SOM REAL** traz o **upgrade HD** por samples (opt-in, download só com o seu toque, créditos na tela). |
 | [`/compose`](src/app/compose/page.tsx) | **Catálogo de Gravações** | Gerenciador de projetos locais salvos no IndexedDB, com visualização de tom, BPM e duração. |
 | [`/compose/editor?id=`](src/app/compose/editor/page.tsx) | **Editor de Timeline** | Piano roll com quantização 1/16, edição de notas, audição em tempo real, regeneração harmônica e exportação. (`/compose/[id]` segue na web.) |
 | [`/learn`](src/app/learn/page.tsx) | **Laboratório de Teoria** | Pedagogia musical progressiva em 9 níveis (intervalos, tríades, condução de vozes e cadências) com zero LLM. |
@@ -245,13 +254,13 @@ Todas as métricas foram aferidas empiricamente via suítes automatizadas no Vit
 O LookaMusic aplica um portão de qualidade rigoroso sem regressões:
 
 ```bash
-# Executar todos os testes unitários e benchmarks DSP (668 testes em 78 arquivos)
+# Executar todos os testes unitários e benchmarks DSP (682 testes em 80 arquivos)
 npm test
 
 # Executar checagem estrita de tipos TypeScript (zero erros)
 npm run typecheck
 
-# Executar automação de testes E2E com Playwright (11 testes; 10 verdes + 1 falha pré-existente documentada no CHANGELOG)
+# Executar automação de testes E2E com Playwright (12 testes, 12 verdes desde a v1.3.3)
 npm run test:e2e
 
 # Executar build otimizado de produção
@@ -263,7 +272,7 @@ npm run build
 ## 🔒 Privacidade Garantida
 
 - **Sem Transmissão de Áudio ou Vídeo:** Áudio do microfone e vídeo da câmera **nunca saem do seu dispositivo**.
-- **Samples Opcionais com Consentimento:** Piano/violão/bateria podem usar som real via packs baixados **somente quando você toca em "BAIXAR SOM REAL"** (`/session` → SOM REAL); por padrão tudo é síntese procedural local. Packs ficam no navegador (memória + Cache API) e continuam offline.
+- **Samples Já Instalados, Zero Requisição:** o som real de piano/violão/bateria vem **empacotado no app** (`public/samples/**`, mesma origem) e carrega sozinho — nenhum download, nenhuma chamada de rede, nenhum consentimento pendente. O engine ainda tem os **modelos nativos** (parciais aditivos) como base, então nada cala sem os áudios.
 - **Sem Rastreamento ou Cookies de Terceiros:** Sessões, gravações e preferências ficam salvos estritamente no `IndexedDB` e `localStorage` do seu navegador/desktop.
 - **Zero Dependência de Nuvem:** Toda a inteligência musical opera no hardware do cliente.
 - Documento completo em: [`PRIVACY.md`](PRIVACY.md).
@@ -284,5 +293,5 @@ npm run build
 ## ⚖️ Licença e Propriedade Intelectual
 
 - **Código-Fonte:** [Licença MIT](LICENSE).
-- **Design de Som Procedural:** 100% sintetizado proceduralmente em Web Audio (`WebAudioSink`). Não utiliza bancos de som proprietários, loops protegidos por direitos autorais ou samples externos — este é o som padrão e o fallback permanente.
-- **Samples Reais (opt-in, fora do bundle):** Piano — Salamander Grand Piano por Alexander Holmberg, **CC-BY 3.0** (~1,9 MB mp3, servido por `tonejs.github.io/audio/salamander`); Violão — FreePats Spanish Classical Guitar, **CC0** (~3,8 MB FLAC do `freepats/spanish-classical-guitar`); Bateria — FreePats Synthesizer Percussion, **CC0** (~0,6 MB FLAC do `freepats/synthesizer-percussion`). Packs opcionais em runtime, **nunca embutidos**, todos com CORS liberado; créditos com links na tela em `/session` → SOM REAL. Guitarra segue 100% sintetizada (sem pack com licença compatível nesta fase).
+- **Design de Som Nativo:** 100% gerado em Web Audio (`WebAudioSink`) a partir de bancos de **parciais aditivos + transiente de ataque** (`config.instruments.nativeModels`) — o piano, o violão e a bateria soam como instrumentos **sem depender de nenhum asset**. Nenhum banco de som proprietário, loop protegido por direitos autorais ou sample externo. Complementado, desde a v1.3.3, pelos samples reais **empacotados** descritos abaixo (mesma origem, offline).
+- **Samples Reais (empacotados no app desde a v1.3.3, ~4,3 MB):** Piano — Salamander Grand Piano por Alexander Holmberg, **CC-BY 3.0**; Violão — FreePats Spanish Classical Guitar, **CC0**; Bateria — FreePats Synthesizer Percussion, **CC0**. Redistribuídos em mp3 mono com fade (`scripts/fetch-sample-packs.mjs`, proveniência versionada), servidos da mesma origem — **sem download em runtime, sem requisição de rede**; créditos com links na tela em `/session` → SOM REAL. Guitarra segue 100% nativa (sem pack com licença compatível nesta fase).

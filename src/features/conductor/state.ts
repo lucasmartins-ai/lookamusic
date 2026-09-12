@@ -45,9 +45,11 @@ export class ConductorState {
   private melody: NoteEvent[] = [];
   private readonly open = new Map<string, NoteEvent>();
   private chords: ChordEvent[] = [];
+  // Hotfix banda base: o lineup de partida é o trio (bateria + piano +
+  // violão) — o Auto fica limitado a ele em `config.arrangement.coreEnsemble`.
   private arrangement: ArrangementState = {
     active: {
-      drums: true, bass: true, piano: true, guitar: true, violao: true,
+      drums: true, bass: false, piano: true, guitar: false, violao: true,
       strings: false, violin: false, sax: false, accordion: false,
     },
     energy: 0.5,
@@ -121,6 +123,19 @@ export class ConductorState {
     this.density = 0;
     this.onsets = [];
     this.lastEventMs.clear();
+  }
+
+  /**
+   * Hotfix cantarolar: zera tudo que foi captado (notas, frases, acordes e
+   * onsets) para começar uma tomada limpa — o contador de notas volta a 0 e
+   * uma segunda tentativa não soma fragmentos da primeira.
+   */
+  clearCapture(): void {
+    this.melody = [];
+    this.open.clear();
+    this.chords = [];
+    this.phrases = [];
+    this.onsets = [];
   }
 
   private onNoteStarted(n: NoteEvent): void {

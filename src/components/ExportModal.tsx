@@ -151,8 +151,8 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
         style={{
           width: "100%",
           maxWidth: "520px",
-          background: "var(--bg-elevated, #16181d)",
-          border: "1px solid var(--line, #2a2e38)",
+          background: "var(--bg-elevated, #16130f)",
+          border: "1px solid var(--line, #2a2521)",
           borderRadius: "8px",
           padding: "24px",
           boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5)",
@@ -225,7 +225,7 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
               border:
                 selectedFormat === "wav"
                   ? "1px solid var(--accent, #4ade80)"
-                  : "1px solid var(--line, #2a2e38)",
+                  : "1px solid var(--line, #2a2521)",
               borderRadius: "6px",
               cursor: "pointer",
               backgroundColor: selectedFormat === "wav" ? "rgba(74, 222, 128, 0.05)" : "transparent",
@@ -258,7 +258,7 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
               border:
                 selectedFormat === "midi"
                   ? "1px solid var(--accent, #4ade80)"
-                  : "1px solid var(--line, #2a2e38)",
+                  : "1px solid var(--line, #2a2521)",
               borderRadius: "6px",
               cursor: "pointer",
               backgroundColor: selectedFormat === "midi" ? "rgba(74, 222, 128, 0.05)" : "transparent",
@@ -291,7 +291,7 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
               border:
                 selectedFormat === "json"
                   ? "1px solid var(--accent, #4ade80)"
-                  : "1px solid var(--line, #2a2e38)",
+                  : "1px solid var(--line, #2a2521)",
               borderRadius: "6px",
               cursor: "pointer",
               backgroundColor: selectedFormat === "json" ? "rgba(74, 222, 128, 0.05)" : "transparent",
@@ -324,7 +324,7 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
               border:
                 selectedFormat === "webm"
                   ? "1px solid var(--accent, #4ade80)"
-                  : "1px solid var(--line, #2a2e38)",
+                  : "1px solid var(--line, #2a2521)",
               borderRadius: "6px",
               cursor: "pointer",
               backgroundColor: selectedFormat === "webm" ? "rgba(74, 222, 128, 0.05)" : "transparent",
@@ -367,7 +367,7 @@ export function ExportModal({ composition, isOpen, onClose }: ExportModalProps) 
               style={{
                 width: "100%",
                 height: "8px",
-                backgroundColor: "var(--line, #2a2e38)",
+                backgroundColor: "var(--line, #2a2521)",
                 borderRadius: "4px",
                 overflow: "hidden",
               }}

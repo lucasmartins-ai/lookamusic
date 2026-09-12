@@ -6,6 +6,7 @@
 - **Fase atual:** Fase 16 — Instrumentos por samples (sintetizador vira fallback) — OK
 - **Hotfix pós-16 (pedido do usuário):** Cantarolar Primeiro como fluxo padrão + estabilização adaptativa + descoberta de samples — OK (666/666 testes, typecheck 0, build verde; ver CHANGELOG)
 - **Correções v1.3.2 (pedido do usuário):** Cantarolar Primeiro agora inicia o conductor (captura de notas funcionava zero) e os packs de som real foram repontados para fontes reais (todas as URLs antigas eram 404) — OK (668/668 testes, downloads verificados na UI, ver CHANGELOG)
+- **v1.3.3 (pedido do usuário, dois lotes):** (a) cantarolar com a banda **completamente muda** (mudo global no conductor, não snapshot de mutes), tomada limpa a cada tentativa + limpeza de padrão/repetição da melodia (6 cantadas não viram mais 14 notas), trio de base (bateria + piano + violão) como lineup padrão e teto do Auto, e **modelos reais nativos** (parciais aditivos + transiente); (b) **som real EMPACOTADO no app** (87 áudios em `public/samples/**`, carregados sozinhos — acabou o download quebrado), UX (MODO AVANÇADO recolhido, trilha 1→2→3, ajuda sempre visível) e visual sem azul (neutros quentes + âmbar). TDRs 17/18/19 — OK (682/682 testes, E2E 11/11 verde, typecheck 0, build verde; ver CHANGELOG)
 - **Próxima fase:** a definir — Fase 17 ainda sem prompt em `docs/prompts/` (não executar nada novo sem prompt)
 
 ## Todo-list das fases (só marque OK com o gate do AGENTS.md §3 verde)

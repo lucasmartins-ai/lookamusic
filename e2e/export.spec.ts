@@ -13,6 +13,7 @@ test("export flow in editor: opens modal, switches format, triggers download", a
   // 1. Visit /session and record a short song
   await page.goto("/session");
   await page.getByTestId("btn-start-recording").click();
+  await page.getByTestId("toggle-advanced").click();
   await page.getByTestId("fixture").click();
   await page.waitForTimeout(500);
   await page.getByTestId("btn-stop-recording").click();

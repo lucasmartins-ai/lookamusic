@@ -1,8 +1,9 @@
 /**
- * Sample store (Phase 16). Business logic for real-vs-synth packs — NEVER in
- * `components/` (they only render). Owns the shared `SampleCache`, the
- * persisted real/synth preference, pack metadata, and the consent-gated
- * download runner. No AudioContext at import time.
+ * Sample store (Phase 16 / v1.3.3). Business logic for real-vs-native packs —
+ * NEVER in `components/` (they only render). Owns the shared `SampleCache`, the
+ * persisted real/synth preference, pack metadata, and the automatic loader
+ * that decodes the bundled packs on the same origin (no download, no gesture).
+ * No AudioContext at import time.
  */
 import { config } from "@/lib/config";
 import { SampleCache, createCacheApiBackend, type DecodeFn } from "./sample-cache";
@@ -145,36 +146,12 @@ export function saveUseRealPrefs(prefs: UseRealPrefs): void {
 }
 
 /**
- * Phase 17: after the microphone is first activated, suggest the real-sound
- * packs once (non-intrusive, dismissible, consent-first). Pure decision so
- * the UI layer only renders `shouldSuggestSamples(...) === true`.
+ * v1.3.3: the packs ship inside the app, so there is nothing to consent to and
+ * nothing to click — the loader below just decodes them from the same origin.
+ * Returns true when the runtime can load them at all (browser + decoder).
  */
-export function shouldSuggestSamples(args: {
-  micActive: boolean;
-  anyPackReady: boolean;
-  dismissed: boolean;
-}): boolean {
-  return args.micActive && !args.anyPackReady && !args.dismissed;
-}
-
-/** Has the user already seen/dismissed the post-mic sample suggestion? */
-export function samplesSuggestionDismissed(): boolean {
-  try {
-    // No storage (SSR, privacy mode) → treat as dismissed and never nag.
-    if (!globalThis.localStorage) return true;
-    return globalThis.localStorage.getItem(config.instruments.samples.promptStorageKey) === "1";
-  } catch {
-    return true;
-  }
-}
-
-/** Remember that the user saw the suggestion (best-effort persistence). */
-export function dismissSamplesSuggestion(): void {
-  try {
-    globalThis.localStorage?.setItem(config.instruments.samples.promptStorageKey, "1");
-  } catch {
-    // Best-effort; the in-memory hook state still hides the banner.
-  }
+export function canAutoLoadPacks(): boolean {
+  return typeof window !== "undefined" && ensureSampleDecoder();
 }
 
 /**

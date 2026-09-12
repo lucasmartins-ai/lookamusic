@@ -8,7 +8,7 @@
 import { config } from "@/lib/config";
 import type { InstrumentId } from "@/domain/types";
 import type { DrumVoice } from "@/features/music/rhythm/patterns";
-import type { VoiceSink } from "./audio-sink";
+import type { NoiseAttackSpec, PartialSpec, VoiceSink } from "./audio-sink";
 import {
   beatToAudioTime,
   clampPan,
@@ -27,6 +27,22 @@ export interface PitchedTimbre {
   release: number;
   detune: number;
   octaveGain: number;
+  /** Native additive model (absent = the plain oscillator path). */
+  partials?: readonly PartialSpec[];
+  noiseAttack?: NoiseAttackSpec;
+  brightnessPerOctave?: number;
+}
+
+/** Native model entry (`config.instruments.nativeModels`), all optional. */
+export interface NativePitchedModel {
+  partials?: readonly PartialSpec[];
+  noiseAttack?: NoiseAttackSpec;
+  brightnessPerOctave?: number;
+}
+
+/** Drum body modes per voice (`config.instruments.nativeModels.drums`). */
+export interface NativeDrumModel {
+  partials?: readonly PartialSpec[];
 }
 
 export interface DrumTimbre {
@@ -104,6 +120,9 @@ export class EngineBase implements InstrumentEngine {
       cutoff: t.cutoff,
       detune: t.detune,
       octaveGain: t.octaveGain,
+      partials: t.partials,
+      noiseAttack: t.noiseAttack,
+      brightnessPerOctave: t.brightnessPerOctave,
     });
   }
 
@@ -122,6 +141,7 @@ export class EngineBase implements InstrumentEngine {
         attack: 0.002,
         release: 0.08,
         cutoff: recipe.filterFreq * 4,
+        partials: drumBodyOf(voice),
       });
     }
     this.sink.noise({
@@ -136,9 +156,32 @@ export class EngineBase implements InstrumentEngine {
   }
 }
 
+/**
+ * Hotfix modelos nativos: additive model for `key`, when one exists.
+ * Everything is optional — an instrument without a native model keeps the
+ * old single-oscillator timbre byte-for-byte.
+ */
+export function nativeModelOf(key: string): NativePitchedModel {
+  const models = config.instruments.nativeModels as unknown as Record<
+    string,
+    NativePitchedModel | undefined
+  >;
+  return models[key] ?? {};
+}
+
+/** Drum body modes for `voice` (empty when the voice has no native model). */
+export function drumBodyOf(voice: string): readonly PartialSpec[] | undefined {
+  const drums = config.instruments.nativeModels.drums as unknown as Record<
+    string,
+    NativeDrumModel | undefined
+  >;
+  return drums[voice]?.partials;
+}
+
 /** Timbre recipe straight from `config.instruments.timbre` (no copies). */
 export function pitchedTimbreOf(key: keyof typeof config.instruments.timbre): PitchedTimbre {
   const r = config.instruments.timbre[key];
+  const model = nativeModelOf(key);
   return {
     kind: "pitched",
     osc: r.osc as OscillatorType,
@@ -147,5 +190,8 @@ export function pitchedTimbreOf(key: keyof typeof config.instruments.timbre): Pi
     release: r.release,
     detune: r.detune,
     octaveGain: r.octaveGain,
+    partials: model.partials,
+    noiseAttack: model.noiseAttack,
+    brightnessPerOctave: model.brightnessPerOctave,
   };
 }

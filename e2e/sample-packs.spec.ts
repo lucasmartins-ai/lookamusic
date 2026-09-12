@@ -16,6 +16,8 @@ test("session: sample real/synth toggle flips without page errors", async ({ pag
   await expect(page.getByTestId("sample-credits")).toContainText("Salamander");
 
   // Sing without a mic so the band is live behind the toggle.
+  // (v1.3.3 UX: o expedidor reativo vive no MODO AVANÇADO, recolhido.)
+  await page.getByTestId("toggle-advanced").click();
   await page.getByTestId("fixture").click();
   await expect(page.getByTestId("chord")).not.toHaveText("—", { timeout: 10_000 });
 

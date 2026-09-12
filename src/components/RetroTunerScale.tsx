@@ -36,8 +36,8 @@ export function RetroTunerScale({
     <div
       className={`retro-tuner-chassis ${className}`}
       style={{
-        background: "linear-gradient(180deg, #1b1e26 0%, #111318 100%)",
-        border: "1px solid #2d3340",
+        background: "linear-gradient(180deg, #1c1815 0%, #12100e 100%)",
+        border: "1px solid #2e2925",
         borderRadius: "10px",
         boxShadow: "inset 1px 1px 2px rgba(255,255,255,0.06), 6px 6px 16px rgba(0,0,0,0.55)",
         padding: "14px 16px",
@@ -59,7 +59,7 @@ export function RetroTunerScale({
           >
             RADIO PITCH TUNER
           </span>
-          <span style={{ fontSize: "10px", color: "#6b7280", letterSpacing: "0.08em" }}>
+          <span style={{ fontSize: "10px", color: "#6e655c", letterSpacing: "0.08em" }}>
             KHZ / SCALE C2–C6
           </span>
         </div>
@@ -67,8 +67,8 @@ export function RetroTunerScale({
         {/* Nixie / Fluorescent Note Display */}
         <div
           style={{
-            background: "#080a0e",
-            border: "1px solid #2a3140",
+            background: "#0a0908",
+            border: "1px solid #2b2622",
             borderRadius: "6px",
             padding: "4px 12px",
             display: "flex",
@@ -82,7 +82,7 @@ export function RetroTunerScale({
               fontFamily: "var(--mono)",
               fontSize: "22px",
               fontWeight: 800,
-              color: voiced ? "#f59e0b" : "#4b5563",
+              color: voiced ? "#f59e0b" : "#4a423a",
               textShadow: voiced ? "0 0 10px rgba(245,158,11,0.7), 0 0 20px rgba(245,158,11,0.4)" : "none",
               letterSpacing: "0.05em",
             }}
@@ -93,14 +93,14 @@ export function RetroTunerScale({
             style={{
               fontFamily: "var(--mono)",
               fontSize: "12px",
-              color: voiced ? "#34d399" : "#374151",
+              color: voiced ? "#34d399" : "#453d36",
               textShadow: voiced ? "0 0 8px rgba(52,211,153,0.5)" : "none",
             }}
           >
             {voiced ? `${frequency.toFixed(1)} Hz` : "IDLE"}
           </span>
           {voiced && (
-            <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+            <span style={{ fontSize: "10px", color: "#a89f95" }}>
               {confPct}% conf
             </span>
           )}
@@ -111,8 +111,8 @@ export function RetroTunerScale({
       <div
         style={{
           height: "52px",
-          background: "radial-gradient(ellipse at 50% 50%, #1a1e28 0%, #0d0f14 100%)",
-          border: "2px solid #242936",
+          background: "radial-gradient(ellipse at 50% 50%, #1b1815 0%, #0e0c0b 100%)",
+          border: "2px solid #25211d",
           borderRadius: "6px",
           boxShadow: "inset 3px 3px 8px rgba(0,0,0,0.85), inset -2px -2px 5px rgba(255,255,255,0.03)",
           position: "relative",
@@ -141,7 +141,7 @@ export function RetroTunerScale({
             fontFamily: "var(--mono)",
             fontSize: "10px",
             fontWeight: 700,
-            color: "#9ca3af",
+            color: "#a89f95",
             letterSpacing: "0.05em",
             position: "relative",
             zIndex: 2,
@@ -176,7 +176,7 @@ export function RetroTunerScale({
                 style={{
                   width: isMajor ? "2px" : "1px",
                   height: isMajor ? "12px" : "6px",
-                  background: isMajor ? "#f59e0b" : "#4b5563",
+                  background: isMajor ? "#f59e0b" : "#4a423a",
                   opacity: isMajor ? 0.85 : 0.5,
                 }}
               />

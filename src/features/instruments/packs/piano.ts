@@ -3,11 +3,11 @@
  * Holmberg), 1 velocity layer sampled every minor 3rd (MIDI 21,24,…,108).
  * License CC-BY-3.0 → credits screen mandatory.
  *
- * Hosting: `tonejs.github.io/audio/salamander` (GitHub Pages, sends
- * `access-control-allow-origin: *`, so cross-origin `fetch` works from the
- * web/PWA and the Tauri webview). File names use `s` for sharps
- * (`Cs`, `Ds`, `Fs`) — same instrument, just a different mirror naming.
- * Remote-only: fetched at runtime under user consent, never bundled.
+ * ENTREGUE COM O APP (v1.3.3): os mp3 vivem em `public/samples/piano/` e
+ * carregam da mesma origem — sem clique em "baixar", sem CORS, sem rede.
+ * Cortados em 4 s com fade (ver `scripts/fetch-sample-packs.mjs`): o pack fica
+ * em memória como PCM decodificado e a cauda original de 16 s custaria
+ * ~5,6 MB de RAM por nota. File names use `s` for sharps (`Cs`, `Ds`, `Fs`).
  */
 import type { PitchedPackManifest } from "./types";
 
@@ -20,7 +20,7 @@ function sampleName(midi: number): string {
   return `${NAMES[pc]}${octave}`;
 }
 
-const BASE_URL = "https://tonejs.github.io/audio/salamander";
+const BASE_URL = "/samples/piano";
 
 function buildNotes(): PitchedPackManifest["notes"] {
   const notes: PitchedPackManifest["notes"] = [];
@@ -35,7 +35,7 @@ export const PIANO_PACK: PitchedPackManifest = {
   kind: "pitched",
   packId: "salamander-grand-v8",
   instrument: "piano",
-  version: 2,
+  version: 3,
   license: "CC-BY-3.0",
   attribution:
     "Salamander Grand Piano by Alexander Holmberg — CC-BY 3.0 (http://freepats.zenvoid.org/Piano/salamander-grand-piano.html)",
@@ -43,6 +43,6 @@ export const PIANO_PACK: PitchedPackManifest = {
   baseUrl: BASE_URL,
   range: { minMidi: 21, maxMidi: 108 },
   notes: buildNotes(),
-  // 30 one-shot mp3s (~66 KB each, single velocity layer) ≈ 1.9 MB.
-  totalBytesEstimate: 1_920_000,
+  // 30 mp3s empacotados (~64 KB cada, 1 camada, 4 s) ≈ 1,9 MB no instalador.
+  totalBytesEstimate: 1_950_000,
 };

@@ -22,6 +22,35 @@ export interface ToneParams {
   octaveGain?: number;
   /** Optional pitch sweep target (kick/tom membranes). */
   freqEnd?: number;
+  /**
+   * Hotfix modelos nativos: additive partial stack replacing the single
+   * oscillator. Each partial rings with its own decay, which is what makes
+   * piano/violão read as instruments instead of oscillators — entirely
+   * procedural, no assets, no download.
+   */
+  partials?: readonly PartialSpec[];
+  /** Native-model transient (hammer/nail/hand) layered on the stack. */
+  noiseAttack?: NoiseAttackSpec;
+  /** Lowpass tracking per octave above A4 (0 = fixed cutoff). */
+  brightnessPerOctave?: number;
+}
+
+/** One additive partial of a native instrument model. */
+export interface PartialSpec {
+  /** Frequency multiplier vs. the fundamental (1 = fundamental). */
+  ratio: number;
+  /** Relative gain (0–1) before the note velocity is applied. */
+  gain: number;
+  /** Ring time constant in seconds (per-partial decay). */
+  decaySec: number;
+}
+
+/** Short noise burst at the note attack (hammer, nail, stick). */
+export interface NoiseAttackSpec {
+  durSec: number;
+  filterType: BiquadFilterType;
+  filterFreq: number;
+  gain: number;
 }
 
 export interface NoiseParams {
@@ -176,6 +205,10 @@ export class WebAudioSink implements VoiceSink {
     try {
       const at = Math.max(p.at, this.ctx.currentTime);
       const dur = Math.max(p.dur, 0.03);
+      if (p.partials && p.partials.length > 0) {
+        this.renderModel(p, at, dur);
+        return;
+      }
       const cutoff = p.cutoff ?? config.instruments.timbre.piano.cutoff;
       const filter = this.ctx.createBiquadFilter();
       filter.type = "lowpass";
@@ -282,6 +315,86 @@ export class WebAudioSink implements VoiceSink {
     } catch {
       // Already gone.
     }
+  }
+
+  /**
+   * Hotfix modelos nativos: additive model voice. Partials share one lowpass
+   * (brightness tracks the note) and each one decays on its own; the optional
+   * noise transient gives the instrument its attack. Falls back to silence
+   * (never throws) when a malformed partial arrives.
+   */
+  private renderModel(p: ToneParams, at: number, dur: number): void {
+    const partials = p.partials ?? [];
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = this.modelCutoff(p);
+    filter.connect(this.out);
+    const peak = Math.max(0, Math.min(1, p.velocity));
+    const attack = Math.max(p.attack, 0.002);
+    for (const part of partials) {
+      const freq = Math.max(p.freq, 1) * part.ratio;
+      if (!Number.isFinite(freq) || freq <= 0) continue;
+      const ring = Math.max(part.decaySec, dur);
+      const level = Math.max(peak * part.gain, 0.0001);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.linearRampToValueAtTime(level, at + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + attack + ring);
+      const osc = this.ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, at);
+      // Membrana afinada (kick/tom/cajon): o sweep de afinação vale para o
+      // fundamental e para cada parcial na mesma proporção — sem isso o corpo
+      // harmônico mataria o "bump" do bumbo.
+      if (p.freqEnd && p.freqEnd > 0 && freq > 0) {
+        const ratio = p.freqEnd / Math.max(p.freq, 1);
+        const target = Math.max(freq * ratio, 1);
+        osc.frequency.exponentialRampToValueAtTime(target, at + Math.min(dur, 0.2));
+      }
+      osc.connect(g);
+      g.connect(filter);
+      osc.start(at);
+      osc.stop(at + attack + ring + 0.05);
+      this.track(osc);
+    }
+    if (p.noiseAttack && p.noiseAttack.gain > 0) {
+      this.renderNoiseAttack(p.noiseAttack, at, peak, filter);
+    }
+  }
+
+  private modelCutoff(p: ToneParams): number {
+    const base = p.cutoff ?? config.instruments.timbre.piano.cutoff;
+    const perOctave = p.brightnessPerOctave ?? 0;
+    if (!(perOctave > 0)) return base;
+    const rel = Math.log2(Math.max(p.freq, 1) / 440);
+    const factor = Math.pow(2, Math.max(-1, Math.min(1, perOctave * rel)));
+    return Math.max(200, Math.min(12000, base * factor));
+  }
+
+  private renderNoiseAttack(
+    spec: NoiseAttackSpec,
+    at: number,
+    velocity: number,
+    dest: AudioNode,
+  ): void {
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffer();
+    src.loop = true;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = spec.filterType;
+    filter.frequency.value = spec.filterFreq;
+    const g = this.ctx.createGain();
+    const level = Math.max(velocity * spec.gain, 0.0001);
+    const dur = Math.max(spec.durSec, 0.005);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(level, at + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(dest);
+    src.start(at);
+    src.stop(at + dur + 0.02);
+    this.track(src);
   }
 
   private buffer(): AudioBuffer {
