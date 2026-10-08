@@ -45,24 +45,44 @@ describe("chooseChordForBar", () => {
     expect(chooseChordForBar(input)).toEqual(chooseChordForBar(input));
   });
 
-  it("repeat cap: never a 3rd identical bar in a row (non-static style)", () => {
+  it("hold: voice still on the chord (with vibrato wobble) keeps the chord — no forced change", () => {
     const tonic: Chord = { root: 0 as PitchClass, quality: "major" };
+    // Singer holds E/G with short ±1 st wobbles (D#, F#, G#): still C major.
+    const voice = [
+      ...melody([64, 64, 67, 67]),
+      { ...melody([63])[0], id: "w1", startTime: 2.0, duration: 0.06 },
+      { ...melody([66])[0], id: "w2", startTime: 2.1, duration: 0.06 },
+    ];
     const { chord } = chooseChordForBar({
       key: key(0, "major"),
       scaleId: "major",
-      melodySlice: [],
+      melodySlice: voice,
       barIndex: 5,
       phrasePosition: "middle",
       style: "pop",
       prevChord: tonic,
-      recentChords: [tonic, tonic],
-      seed: "repeat-cap",
+      recentChords: [tonic, tonic, tonic],
+      seed: "hold",
     });
-    // History already holds run=2 (recent + prev); the pick must break it.
-    const run = [tonic, tonic, tonic].filter(
-      (c) => c.root === chord.root && c.quality === chord.quality,
-    ).length;
-    expect(run < 3 || chord.root !== 0).toBe(true);
+    expect(chord).toEqual(tonic);
+  });
+
+  it("hold: silence keeps the chord", () => {
+    const tonic: Chord = { root: 0 as PitchClass, quality: "major" };
+    const { chord } = chooseChordForBar({
+      key: key(0, "major"), scaleId: "major", melodySlice: [], barIndex: 5,
+      phrasePosition: "middle", style: "pop", prevChord: tonic, recentChords: [tonic, tonic], seed: "s",
+    });
+    expect(chord).toEqual(tonic);
+  });
+
+  it("change: voice clearly leaves the chord (G–B–D held) → moves to G", () => {
+    const tonic: Chord = { root: 0 as PitchClass, quality: "major" };
+    const { chord } = chooseChordForBar({
+      key: key(0, "major"), scaleId: "major", melodySlice: melody([67, 71, 74, 71]), barIndex: 5,
+      phrasePosition: "middle", style: "pop", prevChord: tonic, recentChords: [tonic], seed: "move",
+    });
+    expect(chord.root).toBe(7);
   });
 
   it("scaleIdForKey maps mode → scale registry id", () => {

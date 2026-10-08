@@ -158,6 +158,12 @@ export const config = {
   key: {
     /** Phase 3+: rolling estimation window. */
     windowMs: 8000,
+    /**
+     * Hotfix harmonia estável: o tom só troca quando o novo candidato supera
+     * a correlação do tom atual por esta margem (histerese; antes uma nota
+     * fora virava o tom e a banda inteira pulava junto).
+     */
+    switchMargin: 0.12,
     /** Phase 3+: min confidence delta to emit KeyUpdated. */
     updateDelta: 0.15,
   },
@@ -384,6 +390,17 @@ export const config = {
     tonicEndBonus: 0.2,
     /** Phase 4+: penalty when the pick would repeat the previous bar(s). */
     repeatPenalty: 0.4,
+    /**
+     * Hotfix harmonia estável: o acorde atual SEGURA enquanto a voz recente
+     * (média ponderada por duração) couber nele com este fit (0–1). Só troca
+     * quando a melodia sai claramente do acorde — vibrato/nota de passagem
+     * não muda mais a harmonia a cada compasso.
+     */
+    holdFitMin: 0.6,
+    /** Hotfix harmonia estável: peso de nota da escala fora do acorde no fit. */
+    holdScaleToneWeight: 0.4,
+    /** Hotfix harmonia estável: compassos de voz anteriores usados como evidência. */
+    evidenceBars: 1,
     /** Phase 4+: max identical consecutive bars (ambient/static exempt). */
     maxConsecutiveRepeats: 2,
     /** Phase 4+: styles exempt from the repetition penalty. */
@@ -402,7 +419,15 @@ export const config = {
   },
   conductor: {
     /** Phase 8+: bars planned ahead per tick (1 = atual + 1 = próximo). */
-    planAheadBars: 2,    /** Phase 8+: harmonia re-avaliada a cada N compassos (1 = todo compasso). */
+    planAheadBars: 2,
+    /**
+     * Hotfix harmonia estável: o próximo compasso só é decidido/agendado
+     * quando falta no máximo isto (s) p/ o downbeat — o acorde usa a voz
+     * cantada até ali, não uma melodia vazia de 1 compasso no futuro.
+     * Precisa cobrir lookahead (120 ms) + tick do conductor.
+     */
+    planLeadSec: 0.3,
+    /** Phase 8+: harmonia re-avaliada a cada N compassos (1 = todo compasso). */
     harmonyReestimateEveryBars: 1,
     /** Phase 8+: teto do anel de melodia no MusicalState (memória limitada). */
     melodyCap: 128,

@@ -22,9 +22,9 @@
  *   before the open note closes, so single-frame dropouts and stop
  *   consonants don't split notes. Duration is measured
  *   to the last voiced frame, so it stays exact.
- * - A stable pitch change under continuous voicing is legato: the open note
- *   keeps its id/start and emits NoteChanged. A change after any unvoiced
- *   gap is a re-articulation: NoteEnded + NoteStarted.
+ * - A stable pitch change is always NoteEnded + NoteStarted. Legato closes
+ *   the old note exactly where the new pitch began (no gap); after an
+ *   unvoiced gap it closes at the last voiced frame.
  * - Transport seconds = audio-clock ms / 1000. Phase 2 has no separate
  *   transport; the Phase 8 conductor will own the real clock mapping.
  */
@@ -262,29 +262,23 @@ export class NoteStabilizer {
   }
 
   /**
-   * A new pitch stabilized while a note is open. Continuous voicing =
-   * legato glide (NoteChanged, identity preserved); any unvoiced gap since
-   * the open note's last update = re-articulation (Ended + Started).
+   * A new pitch stabilized while a note is open = a NEW note, legato or not.
+   * Legato closes the old note where the new pitch began (seamless, no gap);
+   * after an unvoiced gap it closes at the last voiced frame. (Hotfix:
+   * legato used to mutate one open note via NoteChanged, so a hummed phrase
+   * reached key/harmony/play-along as ONE note — the band never heard the
+   * melody and guessed.) Hysteresis + confirm windows already filter
+   * vibrato, so only real pitch moves get here.
    */
   private commitTransition(nowMs: number): void {
     const open = this.open;
     const next = this.candidateMidi;
     if (!open || next === null) return;
     const conf = clamp01(this.candidateMeanConf());
-    if (open.cleanLegato) {
-      open.midi = next;
-      open.freqSum += midiToFreq(next);
-      open.confSum += conf;
-      open.frames += 1;
-      this.events.emit("NoteChanged", { id: open.id, midi: next, confidence: conf });
-      // Adopt the new pitch as the running candidate so further drift
-      // re-arms from here instead of double-firing.
-      this.startCandidate(next, nowMs, conf);
-    } else {
-      const sinceMs = this.candidateSinceMs;
-      this.closeOpen(this.silenceAnchorMs(open));
-      this.openNote_(next, sinceMs, nowMs, conf);
-    }
+    const sinceMs = Math.max(this.candidateSinceMs, open.startMs + 1);
+    this.closeOpen(open.cleanLegato ? sinceMs : Math.min(this.silenceAnchorMs(open), sinceMs));
+    this.openNote_(next, sinceMs, nowMs, conf);
+    this.startCandidate(next, sinceMs, conf);
   }
 
   /** Close-time anchor: last voiced frame (exact), never before start. */

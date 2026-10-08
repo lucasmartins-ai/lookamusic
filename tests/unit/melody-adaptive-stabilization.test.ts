@@ -47,9 +47,9 @@ describe("Phase 17 — vibrato tolerance (weak confirmation)", () => {
     const { stab, seen } = harness();
     for (let t = 0; t <= 200; t += 20) stab.push(smObs(G_4, t));
     for (let t = 220; t <= 900; t += 20) stab.push(smObs(G_4 + 1, t));
-    const changed = seen.filter((s) => s.name === "NoteChanged");
-    expect(changed).toHaveLength(1);
-    expect((changed[0].payload as DomainEvents["NoteChanged"]).midi).toBe(G_4 + 1);
+    // Legato step = new note (Ended + Started), never swallowed.
+    expect(names(seen)).toEqual(["NoteStarted", "NoteEnded", "NoteStarted"]);
+    expect((seen[2].payload as DomainEvents["NoteStarted"]).midi).toBe(G_4 + 1);
   });
 });
 
@@ -66,10 +66,10 @@ describe("Phase 17 — adaptive lock", () => {
     // 620 + weakConfirmMs (120) = 740; the locked window (170) holds to ~790.
     stab.push(smObs(G_4 + 1, 620));
     for (let t = 640; t <= 760; t += 20) stab.push(smObs(G_4 + 1, t));
-    expect(seen.filter((s) => s.name === "NoteChanged")).toHaveLength(0);
+    expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
 
     for (let t = 780; t <= 1000; t += 20) stab.push(smObs(G_4 + 1, t));
-    expect(seen.filter((s) => s.name === "NoteChanged")).toHaveLength(1);
+    expect(names(seen)).toEqual(["NoteStarted", "NoteEnded", "NoteStarted"]);
     expect(stab.openNote()?.midi).toBe(G_4 + 1);
   });
 

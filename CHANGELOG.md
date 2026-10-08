@@ -4,6 +4,28 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.3.4 — Banda que segura a harmonia e segue a voz] — OK
+
+Pedido do usuário: "ele se perde e toca algo bizarro", "fica mudando de nota
+toda hora", "pegar uma média e manter a nota". Gate: **688/688 testes**,
+typecheck 0 erros, build verde, **E2E 12/12 verde**. Ver **TDR-20**.
+
+- **Canto ligado agora vira notas.** Troca de altura sem pausa era um
+  `NoteChanged` na mesma nota — uma frase inteira chegava ao tom/harmonia/
+  play-along como 1 nota. Agora é `NoteEnded` + `NoteStarted` sem lacuna.
+- **Acorde pela voz real, não às cegas.** A harmonia usa o compasso anterior +
+  o atual até agora (média ponderada por duração) e o próximo compasso só é
+  decidido a 0,3 s do downbeat. Antes a fatia era sempre vazia e o template pop
+  mandava.
+- **Acorde segura** enquanto a voz cabe nele (`holdFitMin` 0,6) ou há silêncio;
+  sem troca forçada a cada 2 compassos.
+- **Tom com histerese** (`key.switchMargin` 0,12): uma nota fora não muda o tom.
+- **Andamento sem pular compasso**: mudança de BPM rebaseia o transporte.
+- Medido (mesma voz simulada, C–E–G com vibrato ±40¢ por 16 s): antes
+  C→G→Am→F→C→G7→Am (5 trocas); depois C fixo, e G quando a voz vai a G–B–D.
+- Teste de soak (Fase 14) ganhou timeout explícito de 30 s: ~4 s isolado,
+  estourava os 5 s padrão sob carga da suíte (falhava também sem esta mudança).
+
 ## [v1.3.3 — Som real já instalado, cantarolar mudo, padrão/repetição, UX e visual] — OK
 
 Dois lotes de pedidos do usuário, todos com o gate verde:

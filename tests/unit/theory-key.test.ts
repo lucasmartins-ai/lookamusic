@@ -183,3 +183,13 @@ describe("theory purity (TDR-04)", () => {
     expect(config.key.updateDelta).toBe(0.15);
   });
 });
+
+describe("KeyEstimator hysteresis", () => {
+  it("one stray out-of-key note does not flip an established C major", () => {
+    const key = new KeyEstimator(new EventBus());
+    [60, 62, 64, 65, 67, 69, 71, 72, 67, 64].forEach((m, k) => key.addNote(note(m, k * 0.5)));
+    expect(key.tick(5500)).toMatchObject({ root: 0, mode: "major" });
+    key.addNote(note(66, 5.0, 0.4)); // F# once
+    expect(key.tick(5600)).toMatchObject({ root: 0, mode: "major" });
+  });
+});

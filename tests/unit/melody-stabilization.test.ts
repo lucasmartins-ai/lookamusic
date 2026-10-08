@@ -72,17 +72,17 @@ describe("hysteresis", () => {
     expect(stab.openNote()?.midi).toBe(G_4);
   });
 
-  it("glides legato (NoteChanged) on a sustained step under continuous voicing", () => {
+  it("legato step under continuous voicing = new note, seamless (no gap)", () => {
     const { stab, seen } = harness();
     feed((t) => stab.push(smObs(G_4, t)), 0, 200);
-    const firstId = (seen[0].payload as DomainEvents["NoteStarted"]).id;
     feed((t) => stab.push(smObs(A_4, t)), 220, 420);
-    const changed = seen.filter((s) => s.name === "NoteChanged");
-    expect(changed).toHaveLength(1);
-    const payload = changed[0].payload as DomainEvents["NoteChanged"];
-    expect(payload.id).toBe(firstId); // identity preserved
-    expect(payload.midi).toBe(A_4);
-    expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
+    expect(names(seen)).toEqual(["NoteStarted", "NoteEnded", "NoteStarted"]);
+    const first = seen[0].payload as DomainEvents["NoteStarted"];
+    const ended = seen[1].payload as DomainEvents["NoteEnded"];
+    const second = seen[2].payload as DomainEvents["NoteStarted"];
+    expect(second.midi).toBe(A_4);
+    // The old note ends exactly where the new pitch began.
+    expect(first.startTime + ended.duration).toBeCloseTo(second.startTime, 6);
   });
 
   it("re-articulates (Ended + Started) after any unvoiced gap", () => {
@@ -148,10 +148,8 @@ describe("hotfix voz estável: confirmação + trava de oitava + release", () =>
     const { stab, seen } = harness();
     feed((t) => stab.push(smObs(G_4, t)), 0, 200);
     feed((t) => stab.push(smObs(G_4 + 12, t)), 220, 700);
-    const changed = seen.filter((s) => s.name === "NoteChanged");
-    expect(changed).toHaveLength(1);
-    expect((changed[0].payload as DomainEvents["NoteChanged"]).midi).toBe(G_4 + 12);
-    expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
+    expect(names(seen)).toEqual(["NoteStarted", "NoteEnded", "NoteStarted"]);
+    expect((seen[2].payload as DomainEvents["NoteStarted"]).midi).toBe(G_4 + 12);
   });
 
   it("gap curto de oclusiva não fecha a nota (release estendido)", () => {

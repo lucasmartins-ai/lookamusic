@@ -144,7 +144,7 @@ describe("Phase 14 — Memory Leak Hunting & Endurance Soaks", () => {
     expect(stats.dispatchedTotal).toBeGreaterThan(1000);
 
     conductor.dispose();
-  });
+  }, 30_000); // ~4 s alone; the 5 s default timed out under full-suite load (pre-existing flake)
 
   it("teardown completely unhooks engines and leaves 0 dangling bus listeners", () => {
     const events = new EventBus();

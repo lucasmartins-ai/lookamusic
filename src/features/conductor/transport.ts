@@ -31,8 +31,21 @@ export class MusicalTransport {
     this.originSec = finiteOr(originSec, 0);
   }
 
-  setTempo(bpm: number): void {
-    if (Number.isFinite(bpm) && bpm > 0) this.bpm = bpm;
+  /**
+   * With `nowSec`, the grid is rebased so the bar position at `nowSec` is
+   * unchanged: a tempo glide stretches the FUTURE only. Without the rebase a
+   * 5% tempo drift at bar 20 jumped the clock a whole bar (bars replanned /
+   * skipped → the band "se perdia" mid-song).
+   */
+  setTempo(bpm: number, nowSec?: number): void {
+    if (!Number.isFinite(bpm) || bpm <= 0 || bpm === this.bpm) return;
+    if (typeof nowSec === "number" && Number.isFinite(nowSec) && nowSec > this.originSec) {
+      const pos = this.barFloatAt(nowSec);
+      this.bpm = bpm;
+      this.originSec = nowSec - pos * this.barSec();
+      return;
+    }
+    this.bpm = bpm;
   }
 
   setMeter(meter: TimeSignature): void {

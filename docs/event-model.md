@@ -9,7 +9,7 @@ Modules subscribe to events, never to each other's internals. Conductor coordina
 |---|---|---|
 | `PitchDetected` | `PitchObservation` | pitch → smoothing/UI meters (throttled) |
 | `NoteStarted` | `NoteEvent` (partial) | stabilizer → timeline, melody |
-| `NoteChanged` | `{ id, midi, confidence }` | stabilizer → timeline |
+| `NoteChanged` | `{ id, midi, confidence }` | (legado — o estabilizador não emite mais desde o TDR-20: troca de altura = `NoteEnded` + `NoteStarted`) |
 | `NoteEnded` | `{ id, duration }` | stabilizer → melody, phrases |
 | `TempoUpdated` | `TempoState` | rhythm → conductor, UI, drums |
 | `MeterChanged` | `TimeSignature` | rhythm → UI, drums, conductor |

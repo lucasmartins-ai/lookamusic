@@ -239,7 +239,7 @@ export class KeyEstimator {
   tick(nowMs: number, windowMs: number = config.key.windowMs): KeyEstimate | null {
     this.notes = this.notes.filter((n) => nowMs - n.endMs <= windowMs && nowMs >= n.endMs);
     const ranking = estimateKeyFromNotes(this.notes, nowMs, windowMs);
-    this.current = ranking ? { ...ranking.top } : null;
+    this.current = ranking ? this.withHysteresis(ranking) : null;
     if (!this.current) return null;
     const prev = this.lastEmitted;
     const changed =
@@ -252,6 +252,23 @@ export class KeyEstimator {
       this.events.emit("KeyUpdated", { ...this.current });
     }
     return { ...this.current };
+  }
+
+  /**
+   * Keep the current key unless the new top beats it by
+   * `config.key.switchMargin` in correlation: one stray note no longer
+   * flips the key (and the whole band with it).
+   */
+  private withHysteresis(ranking: KeyRanking): KeyEstimate {
+    const cur = this.current;
+    const top = ranking.top;
+    if (!cur || (cur.root === top.root && cur.mode === top.mode)) return { ...top };
+    const held = ranking.ranked.find((k) => k.root === cur.root && k.mode === cur.mode);
+    const best = ranking.ranked[0];
+    if (held && best.correlation - held.correlation < config.key.switchMargin) {
+      return { root: held.root, mode: held.mode, confidence: held.confidence };
+    }
+    return { ...top };
   }
 
   private onNoteEnded(id: string, duration: number): void {

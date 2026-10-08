@@ -38,3 +38,14 @@ describe("MusicalTransport", () => {
     expect(t.barStartSec(-3)).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe("MusicalTransport tempo rebase", () => {
+  it("tempo change at bar 20 keeps the current bar position (no bar jump)", () => {
+    const t = new MusicalTransport(0, 90);
+    const now = t.barStartSec(20) + 0.5;
+    const before = t.barFloatAt(now);
+    t.setTempo(95, now);
+    expect(t.barFloatAt(now)).toBeCloseTo(before, 9);
+    expect(t.barFloatAt(now + 1)).toBeGreaterThan(before);
+  });
+});

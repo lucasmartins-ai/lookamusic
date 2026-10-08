@@ -177,7 +177,8 @@ export class Conductor {
     );
     // Transport follows the playback clock; arrangement drains feed the state.
     this.off = [
-      events.on("TempoUpdated", (t) => this.transport.setTempo(t.playback)),
+      // Tempo reaches the transport only via tick(nowSec) — it needs the
+      // clock to rebase the grid without jumping bars.
       events.on("MeterChanged", (m) => this.transport.setMeter(m)),
       events.on("NoteStarted", (n) => this.maybeHotPickup(n)),
       // Phase 9: vision → arrangement ONLY. applyGesture touches the
@@ -315,7 +316,7 @@ export class Conductor {
     }
     const t0 = Date.now();
     const tempo = this.engines.tempo.tick(nowSec * 1000);
-    this.transport.setTempo(tempo.playback);
+    this.transport.setTempo(tempo.playback, nowSec);
     this.state.setDensity(this.engines.tempo.onsetDensity());
     const barFloat = this.transport.barFloatAt(nowSec);
     const applied = this.engines.arrangement.tick(barFloat, { phraseBoundary: opts.phraseBoundary });
@@ -572,6 +573,9 @@ export class Conductor {
     for (let b = currentBar; b < currentBar + config.conductor.planAheadBars; b++) {
       if (this.plannedBars.has(b)) continue;
       if (b < 0) continue;
+      // Decide a future bar as late as the lookahead allows, so its chord
+      // hears the voice sung right up to the downbeat.
+      if (b > currentBar && this.transport.barStartSec(b) - nowSec > config.conductor.planLeadSec) continue;
       const chord = this.harmonizeBar(b, nowSec);
       const input = this.passageInput(chord, b, bpm, meter);
       const active = this.engines.arrangement.snapshot().active;
@@ -605,7 +609,14 @@ export class Conductor {
     const scaleId = scaleIdForKey(key);
     const barStart = this.transport.barStartSec(bar);
     const barEnd = barStart + this.transport.barSec();
-    const slice = this.state.melodyNotes().filter((n) => n.startTime >= barStart && n.startTime < barEnd);
+    // Evidence = what was ACTUALLY sung: the previous bar(s) + this bar so
+    // far. Open notes count up to now. (Before, the slice was this bar's
+    // future — always empty at plan time — so chords were chosen blind.)
+    const from = barStart - config.harmony.evidenceBars * this.transport.barSec();
+    const slice = this.state
+      .melodyNotes()
+      .filter((n) => n.startTime < barEnd && n.startTime + Math.max(n.duration, 0) >= from)
+      .map((n) => (n.duration > 0 ? n : { ...n, duration: Math.max(0, nowSec - n.startTime) }));
     const phrases = this.state.phraseRecords();
     const phrasePosition = this.phrasePositionFor(barStart, barEnd, phrases);
     const style = harmonyStyleFor(this.styleId);
@@ -634,7 +645,6 @@ export class Conductor {
       confidence,
     };
     this.events.emit("ChordChanged", event);
-    void nowSec;
     return chord;
   }
 
