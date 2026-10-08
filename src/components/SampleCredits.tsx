@@ -1,50 +1,32 @@
 /**
- * SampleCredits — renders only (Phase 16 / v1.3.3). Attribution screen:
- * Salamander Grand Piano (Alexander Holmberg, CC-BY-3.0) + FreePats
- * Spanish Classical Guitar and Synthesizer Percussion (CC0).
- * Desde a v1.3.3 os áudios vêm EMPACOTADOS com o app (mesma origem), então o
- * texto fala de origem/proveniência, não de download.
+ * SampleCredits — renders only. Attribution for every bundled recording
+ * (TDR-22). Sources and processing: `scripts/fetch-sample-packs.mjs`.
  */
+const CREDITS: { label: string; text: string; license: string; url: string }[] = [
+  { label: "Piano", text: "Salamander Grand Piano V3 (Yamaha C5) por Alexander Holmberg", license: "CC-BY 3.0", url: "https://github.com/sfzinstruments/SalamanderGrandPiano" },
+  { label: "Violão", text: "FreePats Spanish Classical Guitar", license: "CC0", url: "https://github.com/freepats/spanish-classical-guitar" },
+  { label: "Bateria", text: "Virtuosity Drums por Versilian Studios & Karoryfer Samples", license: "CC0", url: "https://github.com/sfzinstruments/virtuosity_drums" },
+  { label: "Contrabaixo", text: "D. Smolken Double Bass (Otto Rubner, 1958)", license: "royalty-free", url: "https://github.com/sfzinstruments/dsmolken.double-bass" },
+  { label: "Violino e cordas", text: "VSCO-2 Community Edition por Versilian Studios", license: "CC0", url: "https://github.com/sgossner/VSCO-2-CE" },
+];
+
 export function SampleCredits() {
   return (
-    <div data-testid="sample-credits">
+    <div data-testid="sample-credits" style={{ overflowWrap: "anywhere" }}>
       <h3>CRÉDITOS DE SOM</h3>
       <ul>
-        <li>
-          <strong>Piano:</strong> Salamander Grand Piano (Yamaha C5) por Alexander Holmberg —
-          licença <strong>CC-BY 3.0</strong>. Original em{" "}
-          <a href="http://freepats.zenvoid.org/Piano/salamander-grand-piano.html" target="_blank" rel="noreferrer">
-            freepats.zenvoid.org
-          </a>{" "}
-          · cópia de trabalho em{" "}
-          <a href="https://tonejs.github.io/audio/salamander/" target="_blank" rel="noreferrer">
-            tonejs.github.io/audio/salamander
-          </a>
-          .
-        </li>
-        <li>
-          <strong>Violão:</strong> FreePats Spanish Classical Guitar — domínio público{" "}
-          <strong>CC0</strong>. Fonte:{" "}
-          <a href="https://github.com/freepats/spanish-classical-guitar" target="_blank" rel="noreferrer">
-            github.com/freepats/spanish-classical-guitar
-          </a>
-          .
-        </li>
-        <li>
-          <strong>Bateria:</strong> FreePats Synthesizer Percussion — domínio público{" "}
-          <strong>CC0</strong>. Fonte:{" "}
-          <a href="https://github.com/freepats/synthesizer-percussion" target="_blank" rel="noreferrer">
-            github.com/freepats/synthesizer-percussion
-          </a>
-          .
-        </li>
+        {CREDITS.map((c) => (
+          <li key={c.label}>
+            <strong>{c.label}:</strong> {c.text} — licença <strong>{c.license}</strong>.{" "}
+            <a href={c.url} target="_blank" rel="noreferrer">
+              {c.url.replace("https://", "")}
+            </a>
+          </li>
+        ))}
       </ul>
       <p className="hint">
-        Os áudios acima viajam <strong>dentro do aplicativo</strong> (reempacotados em mp3 mono,
-        ver <code>scripts/fetch-sample-packs.mjs</code>) e tocam offline, sem download nenhum.
-        Quando um áudio ainda não está decodificado, o piano/violão/bateria soam pelos{" "}
-        <strong>modelos nativos</strong> do engine — bancos de parciais aditivos próprios (MIT).
-        Guitarra elétrica/aço segue 100% nativa (sem pack com licença compatível).
+        Todos são gravações de instrumentos acústicos, reempacotadas em mp3 mono dentro do
+        aplicativo — tocam offline, sem download. Nenhum som da banda é sintetizado.
       </p>
     </div>
   );

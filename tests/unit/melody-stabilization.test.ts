@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { EventBus } from "@/lib/events";
 import type { DomainEvents } from "@/domain/events";
 import { NoteStabilizer } from "@/features/music/melody/stabilization";
+import { config } from "@/lib/config";
 import { A_4, G_4, G_SHARP_4, F_SHARP_4, feed, smObs, smUnvoiced } from "../fixtures/melody";
 
 function harness() {
@@ -48,16 +49,18 @@ describe("§9 fixture: G4 + vibrato + G#4/F#4 blips stays G4", () => {
 describe("minimum duration", () => {
   it("ignores blips shorter than stabilityMs", () => {
     const { stab, seen } = harness();
-    feed((t) => stab.push(smObs(G_4, t)), 0, 100); // 6 frames, < 120 ms
+    // Shorter than stabilityMs (TDR-22: 40 ms) → nothing; longer → a note.
+    const S = config.note.stabilityMs;
+    feed((t) => stab.push(smObs(G_4, t)), 0, S - 20);
     expect(seen).toEqual([]);
-    feed((t) => stab.push(smObs(G_4, t)), 120, 200);
+    feed((t) => stab.push(smObs(G_4, t)), S, S + 80);
     expect(names(seen)).toEqual(["NoteStarted"]);
   });
 
   it("drops an attack interrupted by silence", () => {
     const { stab, seen } = harness();
-    feed((t) => stab.push(smObs(G_4, t)), 0, 60);
-    feed((t) => stab.push(smUnvoiced(t)), 80, 400);
+    feed((t) => stab.push(smObs(G_4, t)), 0, config.note.stabilityMs - 20);
+    feed((t) => stab.push(smUnvoiced(t)), config.note.stabilityMs, 400);
     expect(seen).toEqual([]);
   });
 });
@@ -154,9 +157,11 @@ describe("hotfix voz estável: confirmação + trava de oitava + release", () =>
 
   it("gap curto de oclusiva não fecha a nota (release estendido)", () => {
     const { stab, seen } = harness();
+    // Gap 20 ms shorter than the close window (stability + release extra).
+    const gap = config.note.stabilityMs + config.note.releaseExtraMs - 20;
     feed((t) => stab.push(smObs(G_4, t)), 0, 300);
-    feed((t) => stab.push(smUnvoiced(t)), 320, 440);
-    feed((t) => stab.push(smObs(G_4, t)), 460, 700);
+    feed((t) => stab.push(smUnvoiced(t)), 320, 320 + gap - 20);
+    feed((t) => stab.push(smObs(G_4, t)), 320 + gap, 600 + gap);
     expect(names(seen)).toEqual(["NoteStarted"]);
   });
 });

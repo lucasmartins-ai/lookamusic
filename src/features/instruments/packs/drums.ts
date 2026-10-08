@@ -1,39 +1,33 @@
 /**
- * Drum sample pack: FreePats "Synthesizer Percussion" one-shots.
- * License CC0 → credit anyway.
+ * Drum sample pack: Virtuosity Drums (Versilian Studios + Karoryfer), CC0 —
+ * a real acoustic jazz/club kit (TDR-22; replaces the FreePats
+ * "Synthesizer Percussion" kit, which was a synth recording).
  *
- * ENTREGUE COM O APP (v1.3.3): os áudios vivem em `public/samples/drums/` e
- * carregam da mesma origem — sem clique em "baixar", sem CORS, sem rede.
- * FLAC upstream transcodificado para mp3 mono (`scripts/fetch-sample-packs.mjs`).
- * Só as vozes que o upstream realmente gravou estão listadas: qualquer voz
- * ausente (ex. cajon) delega ao `WebAudioSink` nativo, então o kit nunca fica
- * mudo.
+ * Each hit is the mix of the kick, snare, overhead and room microphones
+ * (`scripts/fetch-sample-packs.mjs`), 3 velocity layers × 2 round-robin takes
+ * per voice. Voices the kit does not have are mapped to the closest real
+ * strike (clap → snare rimshot, shaker → hi-hat pedal, cajón → kick / muted
+ * snare) — never to synthesis.
  */
 import type { DrumPackManifest } from "./types";
 
 const BASE_URL = "/samples/drums";
+const VOICES = ["kick", "snare", "hihat", "ride", "crash", "tom", "rim", "clap", "shaker", "cajon", "cajon-slap"] as const;
 
 export const DRUMS_PACK: DrumPackManifest = {
   kind: "drums",
-  packId: "freepats-synthesizer-percussion",
+  packId: "virtuosity-drums",
   instrument: "drums",
-  version: 3,
+  version: 4,
   license: "CC0",
   attribution:
-    "FreePats Synthesizer Percussion — CC0 (https://github.com/freepats/synthesizer-percussion)",
-  moreInfoUrl: "https://github.com/freepats/synthesizer-percussion",
+    "Virtuosity Drums by Versilian Studios & Karoryfer Samples — CC0 (https://github.com/sfzinstruments/virtuosity_drums)",
+  moreInfoUrl: "https://github.com/sfzinstruments/virtuosity_drums",
   baseUrl: BASE_URL,
-  voices: [
-    { voice: "kick", url: `${BASE_URL}/kick.mp3` },
-    { voice: "snare", url: `${BASE_URL}/snare.mp3` },
-    { voice: "hihat", url: `${BASE_URL}/hihat.mp3` },
-    { voice: "ride", url: `${BASE_URL}/ride.mp3` },
-    { voice: "crash", url: `${BASE_URL}/crash.mp3` },
-    { voice: "tom", url: `${BASE_URL}/tom.mp3` },
-    { voice: "rim", url: `${BASE_URL}/rim.mp3` },
-    { voice: "clap", url: `${BASE_URL}/clap.mp3` },
-    { voice: "shaker", url: `${BASE_URL}/shaker.mp3` },
-  ],
-  // 9 mp3 one-shots empacotados ≈ 140 KB no instalador.
-  totalBytesEstimate: 140_000,
+  voices: VOICES.map((voice) => ({
+    voice,
+    layers: [1, 2, 3].map((l) => [1, 2].map((r) => `${BASE_URL}/${voice}_l${l}_r${r}.mp3`)),
+  })),
+  // 66 one-shots mono 128 kbps (0,6–3,5 s) ≈ 1,6 MB no instalador.
+  totalBytesEstimate: 1_600_000,
 };

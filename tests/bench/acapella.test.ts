@@ -113,7 +113,7 @@ describe.skipIf(!WAV)("a cappella benchmark", () => {
     const BLOCK = 2048;
     let nextTick = 0;
     const raw: [number, number][] = [];
-    for (let i = 0; i + BLOCK <= data.length; i += BLOCK) {
+    for (let i = 0; i + BLOCK <= data.length; i += config.audio.hopSize) {
       const buf = data.subarray(i, i + BLOCK);
       now = (i + BLOCK) / sr;
       const obs = { ...yin.process(buf, sr), timestamp: now * 1000 };

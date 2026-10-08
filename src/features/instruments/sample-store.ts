@@ -7,13 +7,17 @@
  */
 import { config } from "@/lib/config";
 import { SampleCache, createCacheApiBackend, type DecodeFn } from "./sample-cache";
-import { PIANO_PACK } from "./packs/piano";
-import { VIOLAO_PACK } from "./packs/violao";
-import { DRUMS_PACK } from "./packs/drums";
+import { PACK_BY_INSTRUMENT, packUrls } from "./packs";
 
-export type SampleInstrumentId = "piano" | "violao" | "drums";
+/** Instruments with a bundled real-sound pack (the ONLY ones that sound, TDR-22). */
+export type SampleInstrumentId = "piano" | "violao" | "drums" | "bass" | "violin" | "strings";
 
-export const SAMPLE_INSTRUMENTS: readonly SampleInstrumentId[] = ["piano", "violao", "drums"] as const;
+export const SAMPLE_INSTRUMENTS: readonly SampleInstrumentId[] = ["piano", "violao", "drums", "bass", "violin", "strings"] as const;
+
+/** True when the instrument has real recordings (UI: others are unavailable). */
+export function hasRealSound(id: string): boolean {
+  return (SAMPLE_INSTRUMENTS as readonly string[]).includes(id);
+}
 
 export interface SamplePackMeta {
   instrument: SampleInstrumentId;
@@ -26,36 +30,15 @@ export interface SamplePackMeta {
 }
 
 export function packMetaOf(id: SampleInstrumentId): SamplePackMeta {
-  if (id === "piano") {
-    return {
-      instrument: id,
-      packId: PIANO_PACK.packId,
-      license: PIANO_PACK.license,
-      attribution: PIANO_PACK.attribution,
-      moreInfoUrl: PIANO_PACK.moreInfoUrl,
-      bytesEstimate: PIANO_PACK.totalBytesEstimate,
-      urls: PIANO_PACK.notes.map((n) => n.url),
-    };
-  }
-  if (id === "violao") {
-    return {
-      instrument: id,
-      packId: VIOLAO_PACK.packId,
-      license: VIOLAO_PACK.license,
-      attribution: VIOLAO_PACK.attribution,
-      moreInfoUrl: VIOLAO_PACK.moreInfoUrl,
-      bytesEstimate: VIOLAO_PACK.totalBytesEstimate,
-      urls: VIOLAO_PACK.notes.map((n) => n.url),
-    };
-  }
+  const pack = PACK_BY_INSTRUMENT[id];
   return {
     instrument: id,
-    packId: DRUMS_PACK.packId,
-    license: DRUMS_PACK.license,
-    attribution: DRUMS_PACK.attribution,
-    moreInfoUrl: DRUMS_PACK.moreInfoUrl,
-    bytesEstimate: DRUMS_PACK.totalBytesEstimate,
-    urls: DRUMS_PACK.voices.map((v) => v.url),
+    packId: pack.packId,
+    license: pack.license,
+    attribution: pack.attribution,
+    moreInfoUrl: pack.moreInfoUrl,
+    bytesEstimate: pack.totalBytesEstimate,
+    urls: packUrls(pack),
   };
 }
 
@@ -118,7 +101,7 @@ export function ensureSampleDecoder(): boolean {
 export type UseRealPrefs = Record<SampleInstrumentId, boolean>;
 
 export function defaultUseRealPrefs(): UseRealPrefs {
-  return { piano: true, violao: true, drums: true };
+  return Object.fromEntries(SAMPLE_INSTRUMENTS.map((id) => [id, true])) as UseRealPrefs;
 }
 
 export function loadUseRealPrefs(): UseRealPrefs {
@@ -127,11 +110,8 @@ export function loadUseRealPrefs(): UseRealPrefs {
     const raw = globalThis.localStorage?.getItem(config.instruments.samples.toggleStorageKey);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<UseRealPrefs>;
-    return {
-      piano: typeof parsed.piano === "boolean" ? parsed.piano : fallback.piano,
-      violao: typeof parsed.violao === "boolean" ? parsed.violao : fallback.violao,
-      drums: typeof parsed.drums === "boolean" ? parsed.drums : fallback.drums,
-    };
+    for (const id of SAMPLE_INSTRUMENTS) if (typeof parsed[id] === "boolean") fallback[id] = parsed[id] as boolean;
+    return fallback;
   } catch {
     return fallback;
   }
@@ -159,18 +139,12 @@ export function canAutoLoadPacks(): boolean {
  * localStorage IO on the audio path). The hook keeps these + persisted
  * prefs in sync; sinks are built once and react instantly to toggles.
  */
-const liveFlags: Record<SampleInstrumentId, boolean> = {
-  piano: true,
-  violao: true,
-  drums: true,
-};
+const liveFlags: Record<SampleInstrumentId, boolean> = defaultUseRealPrefs();
 
 let flagsSynced = false;
 
 export function syncSampleFlags(prefs: UseRealPrefs): void {
-  liveFlags.piano = prefs.piano;
-  liveFlags.violao = prefs.violao;
-  liveFlags.drums = prefs.drums;
+  for (const id of SAMPLE_INSTRUMENTS) liveFlags[id] = prefs[id] !== false;
   flagsSynced = true;
 }
 
@@ -181,16 +155,12 @@ export function setSampleEnabled(id: SampleInstrumentId, v: boolean): void {
 export function isSampleEnabled(id: SampleInstrumentId): boolean {
   if (!flagsSynced) {
     try {
-      const prefs = loadUseRealPrefs();
-      liveFlags.piano = prefs.piano;
-      liveFlags.violao = prefs.violao;
-      liveFlags.drums = prefs.drums;
-      flagsSynced = true;
+      syncSampleFlags(loadUseRealPrefs());
     } catch {
       // Defaults stand.
     }
   }
-  return liveFlags[id];
+  return liveFlags[id] !== false;
 }
 
 /** True when every pack URL is decoded and ready (no network needed). */

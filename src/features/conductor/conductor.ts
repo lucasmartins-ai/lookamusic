@@ -637,7 +637,7 @@ export class Conductor {
     // notes count up to now). The last `evidenceBars` weigh in full; the
     // same span before that keeps context at `olderEvidenceWeight` (decay,
     // not a hard cut: a held B after G–B–D still reads as G).
-    const span = config.harmony.evidenceBars * this.transport.barSec();
+    const span = Math.max(config.harmony.evidenceBars * this.transport.barSec(), config.harmony.minEvidenceSec);
     const recentFrom = slotStart - span;
     const from = recentFrom - span;
     const until = Math.max(nowSec, slotStart);

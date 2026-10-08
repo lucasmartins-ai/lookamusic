@@ -1,38 +1,42 @@
 /**
- * Sample packs E2E (Phase 16): real/synth toggle without errors on /session.
- * No pack is downloaded in CI (remote fetch) — the toggle + credits render
- * and the fallback synth keeps the band playing silently-safe.
+ * Sample packs E2E (TDR-22 "só sons reais"): every audible instrument is a
+ * bundled recording; no real↔synth switch exists, instruments without a
+ * recording are unavailable, and the band plays recorded sources only.
  */
 import { expect, test } from "@playwright/test";
 
-test("session: sample real/synth toggle flips without page errors", async ({ page }) => {
+test("session: only recorded instruments, all packs load, band plays samples", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  await page.addInitScript(() => {
+    const stats = { osc: 0 };
+    (window as unknown as { __osc: typeof stats }).__osc = stats;
+    const mk = BaseAudioContext.prototype.createOscillator;
+    BaseAudioContext.prototype.createOscillator = function () {
+      stats.osc++;
+      return mk.call(this);
+    };
+  });
 
   await page.goto("/session");
-  await expect(page.getByTestId("sample-toggle-piano")).toBeVisible({ timeout: 10_000 });
-
-  // Credits (Salamander CC-BY attribution) are on screen.
+  for (const id of ["piano", "violao", "drums", "bass", "violin", "strings"]) {
+    await expect(page.getByTestId(`sample-ready-${id}`)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId(`sample-mode-${id}`)).toContainText("Som real");
+  }
+  await expect(page.getByTestId("sample-toggle-piano")).toHaveCount(0);
+  await expect(page.getByTestId("sample-credits")).toContainText("Virtuosity Drums");
   await expect(page.getByTestId("sample-credits")).toContainText("Salamander");
 
-  // Sing without a mic so the band is live behind the toggle.
-  // (v1.3.3 UX: o expedidor reativo vive no MODO AVANÇADO, recolhido.)
+  // No real recording → not offered.
+  for (const id of ["guitar", "sax", "accordion"]) await expect(page.getByTestId(`band-${id}`)).toBeDisabled();
+
+  // Band live from the fixture: scheduled, and no oscillator ever created.
   await page.getByTestId("toggle-advanced").click();
   await page.getByTestId("fixture").click();
   await expect(page.getByTestId("chord")).not.toHaveText("—", { timeout: 10_000 });
-
-  // Toggle piano to synth and back to real: mode label follows, no errors.
-  const toggle = page.getByTestId("sample-toggle-piano");
-  const mode = page.getByTestId("sample-mode-piano");
-  await expect(mode).toContainText("Som real");
-  await toggle.click();
-  await expect(mode).toContainText("Sintetizador");
-  await toggle.click();
-  await expect(mode).toContainText("Som real");
-
-  // Band still scheduled through the toggle (fallback never silent).
-  const transport = await page.getByTestId("transport").textContent();
-  expect(transport).toMatch(/scheduled/);
+  await page.waitForTimeout(2000);
+  expect(await page.getByTestId("transport").textContent()).toMatch(/scheduled/);
+  expect(await page.evaluate(() => (window as unknown as { __osc: { osc: number } }).__osc.osc)).toBe(0);
 
   expect(errors).toEqual([]);
 });

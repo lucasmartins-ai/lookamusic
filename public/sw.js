@@ -8,7 +8,7 @@
  * - Leaves real-time audio streams, microphone and worklets uninhibited.
  */
 
-const CACHE_VERSION = "lookamusic-v1.0.0";
+const CACHE_VERSION = "lookamusic-v1.4.0"; // bump whenever worklets/samples change (stale-while-revalidate would serve the old pitch worklet once)
 const STATIC_CACHE = `lookamusic-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `lookamusic-dynamic-${CACHE_VERSION}`;
 

@@ -25,14 +25,16 @@ import {
 } from "@/features/instruments/sample-cache";
 import {
   SampleVoice,
+  SilentSink,
   createInstrumentSink,
+  drumUrlFor,
   inferDrumVoice,
-  shouldUseSamples,
 } from "@/features/instruments/sample-voice";
+import { PACK_BY_INSTRUMENT, packUrls } from "@/features/instruments/packs";
 import { PIANO_PACK } from "@/features/instruments/packs/piano";
 import { VIOLAO_PACK } from "@/features/instruments/packs/violao";
 import { DRUMS_PACK } from "@/features/instruments/packs/drums";
-import { weightBudgetOf } from "@/features/instruments/sample-store";
+import { SAMPLE_INSTRUMENTS, hasRealSound, weightBudgetOf } from "@/features/instruments/sample-store";
 import { LookaheadScheduler } from "@/features/instruments/scheduler";
 
 /* ---------- stub Web Audio (Node-safe, no real sound) ---------- */
@@ -202,89 +204,69 @@ describe("manifest: full range coverage", () => {
 
 /* ---------- fallback ---------- */
 
-describe("fallback: network / decode / missing → synth, never silence", () => {
+describe("only real sound (TDR-22): missing sample → silence, never synth", () => {
   const tone = { freq: 440, at: 100.5, dur: 0.4, velocity: 0.8, type: "triangle" as OscillatorType, attack: 0.004, release: 0.3 };
 
-  it("empty cache → every tone lands on the fallback sink", () => {
+  it("synth fallback is off by default", () => {
+    expect(config.instruments.samples.synthFallback).toBe(false);
+  });
+
+  it("empty cache → the note is skipped (no sample, no synth)", () => {
     const sources: StubSource[] = [];
     const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
     const { voice, fallback } = sampleVoiceWith(sources, { pitched: PIANO_PACK, cache });
     voice.tone(tone);
     expect(sources.filter((s) => s.started)).toHaveLength(0);
-    expect(fallback.tones).toHaveLength(1);
+    expect(fallback.calls).toBe(0);
   });
 
-  it("useSamples=false → synth even with buffers cached", () => {
+  it("live toggle off → silence; on → samples (instant, no rebuild)", () => {
     const sources: StubSource[] = [];
     const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
-    const sel = selectSample(69, PIANO_PACK)!;
-    cache.put(sel.note.url, fakeBuffer());
-    const { voice, fallback } = sampleVoiceWith(sources, { pitched: PIANO_PACK, cache, useSamples: false });
-    voice.tone({ ...tone, freq: 440 });
-    expect(sources.filter((s) => s.started)).toHaveLength(0);
-    expect(fallback.tones).toHaveLength(1);
-  });
-
-  it("live toggle off → synth; on → samples (instant, no rebuild)", () => {
-    const sources: StubSource[] = [];
-    const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
-    const sel = selectSample(69, PIANO_PACK)!;
-    cache.put(sel.note.url, fakeBuffer());
+    for (const n of PIANO_PACK.notes) cache.put(n.url, fakeBuffer());
     let on = true;
-    const { voice, fallback } = sampleVoiceWith(sources, {
-      pitched: PIANO_PACK, cache, enabled: () => on,
-    });
+    const { voice, fallback } = sampleVoiceWith(sources, { pitched: PIANO_PACK, cache, enabled: () => on });
     voice.tone(tone);
     expect(sources.filter((s) => s.started)).toHaveLength(1);
     on = false;
     voice.tone(tone);
-    expect(fallback.tones).toHaveLength(1);
+    expect(sources.filter((s) => s.started)).toHaveLength(1);
+    expect(fallback.calls).toBe(0);
   });
 
-  it("fetch failure keeps old buffers and falls back per-note", async () => {
-    const cache = new SampleCache(
-      async () => {
-        throw new Error("offline");
-      },
-      async () => fakeBuffer(),
-    );
-    await expect(cache.ensure("https://x/missing.mp3")).rejects.toThrow("offline");
-    const sources: StubSource[] = [];
-    const { voice, fallback } = sampleVoiceWith(sources, { pitched: PIANO_PACK, cache });
-    expect(() => voice.tone(tone)).not.toThrow();
-    expect(fallback.tones).toHaveLength(1);
-  });
-
-  it("decode failure → fallback, no exception, no silence", async () => {
-    const cache = new SampleCache(async () => new ArrayBuffer(8), async () => {
-      throw new Error("bad ogg");
+  it("fetch / decode failures never throw and never reach the synth", async () => {
+    const offline = new SampleCache(async () => {
+      throw new Error("offline");
+    }, async () => fakeBuffer());
+    await expect(offline.ensure("/samples/x.mp3")).rejects.toThrow("offline");
+    const bad = new SampleCache(async () => new ArrayBuffer(8), async () => {
+      throw new Error("bad mp3");
     });
-    await expect(cache.ensure("https://x/bad.ogg")).rejects.toThrow("bad ogg");
-    const sources: StubSource[] = [];
-    const { voice, fallback } = sampleVoiceWith(sources, { pitched: PIANO_PACK, cache });
-    expect(() => voice.tone(tone)).not.toThrow();
-    expect(fallback.tones).toHaveLength(1);
+    await expect(bad.ensure("/samples/y.mp3")).rejects.toThrow("bad mp3");
+    for (const cache of [offline, bad]) {
+      const { voice, fallback } = sampleVoiceWith([], { pitched: PIANO_PACK, cache });
+      expect(() => voice.tone(tone)).not.toThrow();
+      expect(fallback.calls).toBe(0);
+    }
   });
 
-  it("drums without pack → membrane+noise pair identical to synth", () => {
-    const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
-    const sources: StubSource[] = [];
-    const { voice, fallback } = sampleVoiceWith(sources, { drums: true, cache });
-    const engine = new EngineBase("drums", voice, { kind: "drums" });
-    const synthSink = new FakeSink();
-    const synth = new EngineBase("drums", synthSink, { kind: "drums" });
-    const events = planDrums(demoPassage(), 1);
-    expect(events.length).toBeGreaterThan(0);
-    engine.schedule(events, scheduleCtx());
-    synth.schedule(events, scheduleCtx());
-    expect(sources.filter((s) => s.started)).toHaveLength(0);
-    expect(fallback.tones).toEqual(synthSink.tones);
-    expect(fallback.noises).toEqual(synthSink.noises);
+  it("synthFallback=true restores the procedural sink (debug switch)", () => {
+    const samples = config.instruments.samples as { synthFallback: boolean };
+    const prev = samples.synthFallback;
+    samples.synthFallback = true;
+    try {
+      const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
+      const { voice, fallback } = sampleVoiceWith([], { pitched: PIANO_PACK, cache });
+      voice.tone(tone);
+      expect(fallback.tones).toHaveLength(1);
+    } finally {
+      samples.synthFallback = prev;
+    }
   });
 
-  it("drums with full pack → one source per noise hit, zero fallback", () => {
+  it("drums with full pack → one recorded hit per noise event, zero synth", () => {
     const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
-    for (const v of DRUMS_PACK.voices) cache.put(v.url, fakeBuffer(0.5));
+    for (const u of DRUMS_PACK.voices.flatMap((v) => v.layers.flat())) cache.put(u, fakeBuffer(0.5));
     const sources: StubSource[] = [];
     const { voice, fallback } = sampleVoiceWith(sources, { drums: true, cache });
     const engine = new EngineBase("drums", voice, { kind: "drums" });
@@ -294,6 +276,18 @@ describe("fallback: network / decode / missing → synth, never silence", () => 
     new EngineBase("drums", synthNoises, { kind: "drums" }).schedule(events, scheduleCtx());
     expect(sources.filter((s) => s.started).length).toBe(synthNoises.noises.length);
     expect(fallback.calls).toBe(0);
+  });
+
+  it("drum layers follow velocity and repeats alternate round-robin takes", () => {
+    expect(drumUrlFor(DRUMS_PACK, "snare", 0.1, 0)).toContain("snare_l1_r1");
+    expect(drumUrlFor(DRUMS_PACK, "snare", 0.1, 1)).toContain("snare_l1_r2");
+    expect(drumUrlFor(DRUMS_PACK, "snare", 1, 0)).toContain("snare_l3_r1");
+    expect(drumUrlFor(DRUMS_PACK, "kazoo", 0.5, 0)).toBeNull();
+  });
+
+  it("pitched layers: soft note → soft recording, loud note → loud recording", () => {
+    expect(selectSample(60, PIANO_PACK, 2, 0.3)!.note.url).toContain("_v6");
+    expect(selectSample(60, PIANO_PACK, 2, 0.95)!.note.url).toContain("_v12");
   });
 });
 
@@ -379,24 +373,16 @@ describe("integration: 2-bar piano+violão render", () => {
     return demoPassage();
   }
 
-  it("without packs: output identical to today's synth (parity snapshot)", () => {
+  it("without packs: total silence (no synth parity anymore, TDR-22)", () => {
     for (const [id, plan] of [["piano", planPiano], ["violao", planViolao]] as const) {
       const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
       const sources: StubSource[] = [];
-      const { voice, fallback } = sampleVoiceWith(sources, {
-        pitched: id === "piano" ? PIANO_PACK : VIOLAO_PACK,
-        cache,
-      });
-      const timbre = pitchedTimbreOf(id);
-      const viaSamples = new EngineBase(id, voice, timbre);
-      const synthSink = new FakeSink();
-      const viaSynth = new EngineBase(id, synthSink, timbre);
+      const { voice, fallback } = sampleVoiceWith(sources, { pitched: id === "piano" ? PIANO_PACK : VIOLAO_PACK, cache });
       const events = plan(twoBars(), 2).filter((e) => e.instrument === id);
       expect(events.length).toBeGreaterThan(0);
-      viaSamples.schedule(events, scheduleCtx());
-      viaSynth.schedule(events, scheduleCtx());
+      new EngineBase(id, voice, pitchedTimbreOf(id)).schedule(events, scheduleCtx());
       expect(sources.filter((s) => s.started)).toHaveLength(0);
-      expect(fallback.tones).toEqual(synthSink.tones);
+      expect(fallback.calls).toBe(0);
     }
   });
 
@@ -461,24 +447,16 @@ describe("integration: 2-bar piano+violão render", () => {
 /* ---------- weights + wiring ---------- */
 
 describe("weights: bundled pack size stays inside the budget", () => {
-  it("piano ≤ 2 MB, violão ≤ 5 MB, bateria ≤ 2 MB", () => {
-    expect(PIANO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("piano"));
-    expect(weightBudgetOf("piano")).toBe(2 * 1024 * 1024);
-    expect(VIOLAO_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("violao"));
-    expect(weightBudgetOf("violao")).toBe(5 * 1024 * 1024);
-    expect(DRUMS_PACK.totalBytesEstimate).toBeLessThanOrEqual(weightBudgetOf("drums"));
-    expect(weightBudgetOf("drums")).toBe(2 * 1024 * 1024);
+  const ALL = Object.values(PACK_BY_INSTRUMENT);
+
+  it("every pack fits its instrument budget", () => {
+    for (const id of SAMPLE_INSTRUMENTS) {
+      expect(PACK_BY_INSTRUMENT[id].totalBytesEstimate, id).toBeLessThanOrEqual(weightBudgetOf(id));
+    }
   });
 
   it("packs vêm EMPACOTADOS no app (mesma origem, nunca remoto)", () => {
-    // v1.3.3 (pedido do usuário: "quero que venha já instalado"): os packs
-    // deixaram de ser remotos — se algum URL voltar a apontar para fora, o
-    // app deixa de funcionar offline e não há mais clique de download.
-    const urls = [
-      ...PIANO_PACK.notes.map((n) => n.url),
-      ...VIOLAO_PACK.notes.map((n) => n.url),
-      ...DRUMS_PACK.voices.map((v) => v.url),
-    ];
+    const urls = ALL.flatMap(packUrls);
     expect(urls.length).toBeGreaterThan(0);
     for (const u of urls) {
       expect(u.startsWith("/samples/")).toBe(true);
@@ -487,49 +465,34 @@ describe("weights: bundled pack size stays inside the budget", () => {
   });
 
   it("todo URL de pack existe de fato em public/ (manifest ↔ bundle)", () => {
-    // O erro clássico de pack empacotado é o manifest apontar para um arquivo
-    // que não foi copiado; aqui o teste falha no CI em vez de silenciar a
-    // amostra no aparelho do usuário.
-    const urls = [
-      ...PIANO_PACK.notes.map((n) => n.url),
-      ...VIOLAO_PACK.notes.map((n) => n.url),
-      ...DRUMS_PACK.voices.map((v) => v.url),
-    ];
-    expect(urls.length).toBe(87);
+    const urls = ALL.flatMap(packUrls);
+    // 60 piano + 48 violão + 66 bateria + 22 baixo + 30 violino + 22 cordas.
+    expect(urls.length).toBe(248);
     for (const u of urls) {
       expect(u).not.toContain("#");
       expect(u).not.toContain(" ");
-      expect(() => decodeURIComponent(u)).not.toThrow();
-      expect(existsSync(join(process.cwd(), "public", u))).toBe(true);
+      expect(existsSync(join(process.cwd(), "public", u)), u).toBe(true);
     }
   });
 
-  it("guitar keeps synthesis (no pack, flag off)", () => {
-    expect(shouldUseSamples("guitar")).toBe(false);
-    expect(shouldUseSamples("piano")).toBe(true);
-    expect(shouldUseSamples("violao")).toBe(true);
-    expect(shouldUseSamples("drums")).toBe(true);
+  it("every pitched pack covers its range within the ±2 st retune budget", () => {
+    for (const p of ALL) if (p.kind === "pitched") expect(validatePitchedManifest(p).gaps, p.packId).toEqual([]);
   });
 
-  it("createInstrumentSink: unknown/guitar → plain procedural sink", () => {
-    const sources: StubSource[] = [];
-    const ctx = stubCtx(sources);
+  it("instruments without a real recording are silent, never synthesized", () => {
+    expect(hasRealSound("guitar")).toBe(false);
+    expect(hasRealSound("sax")).toBe(false);
+    expect(hasRealSound("accordion")).toBe(false);
+    for (const id of SAMPLE_INSTRUMENTS) expect(hasRealSound(id)).toBe(true);
+    const ctx = stubCtx([]);
     const master = stubGain();
     const cache = new SampleCache(async () => new ArrayBuffer(8), async () => fakeBuffer());
-    const guitar = createInstrumentSink(
-      ctx as unknown as BaseAudioContext,
-      master as unknown as AudioNode,
-      "guitar",
-      cache,
-    );
-    expect(guitar.constructor.name).toBe("WebAudioSink");
-    const nocache = createInstrumentSink(
-      ctx as unknown as BaseAudioContext,
-      master as unknown as AudioNode,
-      "piano",
-      null,
-    );
-    expect(nocache.constructor.name).toBe("WebAudioSink");
+    for (const id of ["guitar", "sax", "accordion"]) {
+      const sink = createInstrumentSink(ctx as unknown as BaseAudioContext, master as unknown as AudioNode, id, cache);
+      expect(sink).toBeInstanceOf(SilentSink);
+    }
+    const bass = createInstrumentSink(ctx as unknown as BaseAudioContext, master as unknown as AudioNode, "bass", cache);
+    expect(bass).toBeInstanceOf(SampleVoice);
   });
 
   it("inferDrumVoice resolves every configured recipe (unknown → null)", () => {

@@ -3,9 +3,10 @@
  * same usage interface (`tone({freq, at, dur, velocity})`): pitched notes play
  * the nearest sample via `AudioBufferSourceNode` (+ `playbackRate` retune
  * within ±2 st) with the existing release envelope; drums play one-shots.
- * Anything missing or failing (no pack, no buffer, |detune| > budget,
- * network, decode, unknown voice) delegates to the inner procedural
- * `WebAudioSink` — no click, no exception, no silence.
+ * TDR-22 ("só sons reais"): when a sample is missing (not decoded yet,
+ * |detune| > budget, unknown voice) the note is SKIPPED — the procedural
+ * `WebAudioSink` is only used when `config.instruments.samples.synthFallback`
+ * is true (off by default). Never an exception, never a synth note.
  *
  * No AudioContext is touched at import time. No URLs here — packs live in
  * `packs/` and arrive as arguments.
@@ -13,11 +14,9 @@
 import { config } from "@/lib/config";
 import { WebAudioSink, type NoiseParams, type ToneParams, type VoiceSink } from "./audio-sink";
 import { freqToMidi, selectSample, type SampleCache } from "./sample-cache";
-import { DRUMS_PACK } from "./packs/drums";
-import { PIANO_PACK } from "./packs/piano";
-import { VIOLAO_PACK } from "./packs/violao";
+import { PACK_BY_INSTRUMENT } from "./packs";
 import type { DrumPackManifest, PitchedPackManifest } from "./packs/types";
-import { isSampleEnabled } from "./sample-store";
+import { isSampleEnabled, type SampleInstrumentId } from "./sample-store";
 
 export interface SampleVoiceOpts {
   pitchedPack?: PitchedPackManifest;
@@ -39,9 +38,36 @@ export function shouldUseSamples(id: string): boolean {
   return samples[id]?.useSamples === true;
 }
 
-function drumUrlFor(pack: DrumPackManifest, voice: string): string | null {
+/**
+ * Velocity layer (soft → loud) + round-robin take for one drum hit. `rr` is
+ * the running hit count of that voice, so repeats alternate takes.
+ */
+export function drumUrlFor(pack: DrumPackManifest, voice: string, velocity = 0.8, rr = 0): string | null {
   const hit = pack.voices.find((v) => v.voice === voice);
-  return hit ? hit.url : null;
+  if (!hit || hit.layers.length === 0) return null;
+  const v = Number.isFinite(velocity) ? Math.max(0, Math.min(1, velocity)) : 0.8;
+  const layer = hit.layers[Math.min(hit.layers.length - 1, Math.floor(v * hit.layers.length))];
+  return layer.length > 0 ? layer[rr % layer.length] : null;
+}
+
+/**
+ * Playback gain from note velocity. A multi-layer pack already encodes the
+ * dynamic in the recording (the soft layer is quieter and darker), so the
+ * velocity only shades it (0.55–1) instead of attenuating a second time.
+ */
+export function layeredGain(velocity: number, layered: boolean): number {
+  const v = Number.isFinite(velocity) ? Math.max(0, Math.min(1, velocity)) : 0.8;
+  return layered ? 0.55 + 0.45 * v : v;
+}
+
+/** No-op sink: an instrument with no real recording stays silent (TDR-22). */
+export class SilentSink implements VoiceSink {
+  tone(): void {}
+  noise(): void {}
+  cancel(): void {}
+  setVolume(): void {}
+  setPan(): void {}
+  dispose(): void {}
 }
 
 /**
@@ -67,6 +93,7 @@ export class SampleVoice implements VoiceSink {
   private readonly live: AudioScheduledSourceNode[] = [];
   private pendingTone: ToneParams | null = null;
   private disposed = false;
+  private readonly rrCount = new Map<string, number>();
 
   constructor(
     private readonly ctx: BaseAudioContext,
@@ -126,16 +153,17 @@ export class SampleVoice implements VoiceSink {
         return;
       }
       const midi = Math.round(freqToMidi(p.freq));
-      const sel = selectSample(midi, this.opts.pitchedPack);
+      const sel = selectSample(midi, this.opts.pitchedPack, undefined, p.velocity);
       const buf = sel ? this.opts.cache.get(sel.note.url) : null;
       if (!sel || !buf) {
         this.safeFallbackTone(p);
         return;
       }
+      const pack = this.opts.pitchedPack;
       this.playBuffer(buf, {
         at: p.at,
         dur: p.dur,
-        velocity: p.velocity,
+        velocity: layeredGain(p.velocity, pack.notes.length > new Set(pack.notes.map((n) => n.midi)).size) * (pack.gain ?? 1),
         attack: p.attack,
         release: p.release,
         rate: sel.rate,
@@ -154,7 +182,9 @@ export class SampleVoice implements VoiceSink {
     }
     try {
       const voice = inferDrumVoice(p);
-      const url = voice ? drumUrlFor(this.opts.drumPack, voice) : null;
+      const rr = voice ? this.rrCount.get(voice) ?? 0 : 0;
+      if (voice) this.rrCount.set(voice, rr + 1);
+      const url = voice ? drumUrlFor(this.opts.drumPack, voice, p.velocity, rr) : null;
       const buf = url ? this.opts.cache.get(url) : null;
       if (!voice || !url || !buf) {
         // No sample: replay the held membrane (if any) + synth noise so the
@@ -164,14 +194,16 @@ export class SampleVoice implements VoiceSink {
         return;
       }
       // One-shot replaces the membrane+noise pair: drop the held tone.
+      // A real strike rings for its own recorded length (the synth recipe's
+      // 50–140 ms used to chop kick/hat/cymbal tails into clicks).
       this.pendingTone = null;
-      const dur = Math.max(p.dur, 0.05);
+      const dur = Math.max(buf.duration - 0.03, 0.05);
       this.playBuffer(buf, {
         at: p.at,
         dur,
-        velocity: p.velocity,
-        attack: 0.002,
-        release: Math.min(dur * 0.6, 0.2),
+        velocity: layeredGain(p.velocity, true) * (this.opts.drumPack.gain ?? 1),
+        attack: 0.001,
+        release: 0.03,
         rate: 1,
       });
     } catch {
@@ -264,7 +296,8 @@ export class SampleVoice implements VoiceSink {
     src.buffer = buf;
     src.playbackRate.value = o.rate;
     const g = this.ctx.createGain();
-    const peak = Math.max(0, Math.min(1, o.velocity));
+    // Up to ×4: pack trims can lift quiet banks above unity (sample peaks < 1).
+    const peak = Math.max(0, Math.min(4, o.velocity));
     const attack = Math.max(o.attack, 0.002);
     g.gain.setValueAtTime(0.0001, at);
     g.gain.linearRampToValueAtTime(Math.max(peak, 0.0001), at + attack);
@@ -296,6 +329,7 @@ export class SampleVoice implements VoiceSink {
   }
 
   private safeFallbackTone(p: ToneParams): void {
+    if (!config.instruments.samples.synthFallback) return;
     try {
       this.opts.fallback.tone(p);
     } catch {
@@ -304,6 +338,7 @@ export class SampleVoice implements VoiceSink {
   }
 
   private safeFallbackNoise(p: NoiseParams): void {
+    if (!config.instruments.samples.synthFallback) return;
     try {
       this.opts.fallback.noise(p);
     } catch {
@@ -313,12 +348,11 @@ export class SampleVoice implements VoiceSink {
 }
 
 /**
- * Per-instrument wiring (piano → violão → bateria): preference from
- * `config.instruments.samples.<id>.useSamples`; without a cache the result
- * is a plain procedural sink (fallback invisible, zero behavior change).
- * The live real/synth toggle is read per-note from `sample-store` flags so
- * the switch applies instantly; downloads apply live through the shared
- * cache (buffers appear → subsequent notes play them, no rebuild).
+ * Per-instrument wiring from `PACK_BY_INSTRUMENT`. An instrument without a
+ * real pack gets a `SilentSink` (or the procedural sink only when
+ * `config.instruments.samples.synthFallback` is on). Without a cache (Node
+ * tests) the result is the procedural sink, as before. The per-instrument
+ * enable flag is read per note from `sample-store`.
  */
 export function createInstrumentSink(
   ctx: BaseAudioContext,
@@ -328,35 +362,27 @@ export function createInstrumentSink(
   makeFallback: (ctx: BaseAudioContext, master: AudioNode) => VoiceSink = (c, m) => new WebAudioSink(c, m),
 ): VoiceSink {
   const fallback = makeFallback(ctx, master);
-  if (!cache || !shouldUseSamples(instrumentId)) return fallback;
-  try {
-    if (instrumentId === "piano") {
-      return new SampleVoice(ctx, master, {
-        pitchedPack: PIANO_PACK, cache, fallback, useSamples: true,
-        enabled: () => safeFlag("piano"),
-      });
-    }
-    if (instrumentId === "violao") {
-      return new SampleVoice(ctx, master, {
-        pitchedPack: VIOLAO_PACK, cache, fallback, useSamples: true,
-        enabled: () => safeFlag("violao"),
-      });
-    }
-    if (instrumentId === "drums") {
-      return new SampleVoice(ctx, master, {
-        drumPack: DRUMS_PACK, cache, fallback, useSamples: true,
-        enabled: () => safeFlag("drums"),
-      });
-    }
-  } catch {
-    return fallback;
+  if (!cache) return fallback;
+  const pack = PACK_BY_INSTRUMENT[instrumentId];
+  if (!pack || !shouldUseSamples(instrumentId)) {
+    return config.instruments.samples.synthFallback ? fallback : new SilentSink();
   }
-  return fallback;
+  try {
+    return new SampleVoice(ctx, master, {
+      ...(pack.kind === "drums" ? { drumPack: pack } : { pitchedPack: pack }),
+      cache,
+      fallback,
+      useSamples: true,
+      enabled: () => safeFlag(instrumentId),
+    });
+  } catch {
+    return config.instruments.samples.synthFallback ? fallback : new SilentSink();
+  }
 }
 
-function safeFlag(id: "piano" | "violao" | "drums"): boolean {
+function safeFlag(id: string): boolean {
   try {
-    return isSampleEnabled(id);
+    return isSampleEnabled(id as SampleInstrumentId);
   } catch {
     return true;
   }

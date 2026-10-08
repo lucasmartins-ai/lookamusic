@@ -30,10 +30,15 @@ function maxDetune(): number {
   return config.instruments.samples.maxDetuneSt;
 }
 
-/** Nearest sampled note for a target MIDI (ties → lower sample). */
+/**
+ * Nearest sampled note for a target MIDI (ties → lower sample); among the
+ * layers recorded at that pitch, the one nearest to `velocity` (default:
+ * the loudest-but-one behaviour of a single-layer pack is unchanged).
+ */
 export function findNearestSample(
   midi: number,
   notes: readonly PitchedSampleNote[],
+  velocity?: number,
 ): { note: PitchedSampleNote; detuneSt: number } | null {
   if (notes.length === 0) return null;
   const target = Math.round(midi);
@@ -42,7 +47,8 @@ export function findNearestSample(
   for (let i = 1; i < notes.length; i++) {
     const n = notes[i];
     const d = Math.abs(target - Math.round(n.midi));
-    if (d < bestDist) {
+    const sameDist = d === bestDist && Math.round(n.midi) === Math.round(best.midi);
+    if (d < bestDist || (sameDist && velocity !== undefined && Math.abs(n.velocity - velocity) < Math.abs(best.velocity - velocity))) {
       best = n;
       bestDist = d;
     }
@@ -58,8 +64,9 @@ export function selectSample(
   midi: number,
   manifest: PitchedPackManifest,
   maxDetuneSt: number = maxDetune(),
+  velocity?: number,
 ): NearestSample | null {
-  const found = findNearestSample(midi, manifest.notes);
+  const found = findNearestSample(midi, manifest.notes, velocity);
   if (!found) return null;
   if (Math.abs(found.detuneSt) > maxDetuneSt) return null;
   return { note: found.note, detuneSt: found.detuneSt, rate: semitonesToRate(found.detuneSt) };

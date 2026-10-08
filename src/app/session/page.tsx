@@ -30,7 +30,8 @@ import { INSTRUMENTS, type InstrumentId } from "@/domain/types";
 import { useLearnSettings } from "@/features/learn/useLearnSettings";
 import { LearnPanel } from "@/components/LearnPanel";
 import { useSamplePacks } from "@/features/instruments/useSamplePacks";
-import { SamplePackPanel } from "@/components/SamplePackPanel";
+import { SamplePackPanel, SAMPLE_LABELS } from "@/components/SamplePackPanel";
+import { hasRealSound } from "@/features/instruments/sample-store";
 import { SampleCredits } from "@/components/SampleCredits";
 import { FeedbackWatcher, looksLikeFeedback } from "@/features/audio/feedback";
 import { SessionStatusStrip } from "@/components/SessionStatusStrip";
@@ -57,11 +58,6 @@ import { Suspense } from "react";
 
 const KEY_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-const SAMPLE_LABELS: Record<SampleInstrumentId, string> = {
-  piano: "Piano",
-  violao: "Violão",
-  drums: "Bateria",
-};
 
 function keyLabel(root: number, mode: string): string {
   return `${KEY_NAMES[((Math.round(root) % 12) + 12) % 12] ?? "?"} ${mode}`;
@@ -273,10 +269,9 @@ function SessionBody() {
 
   // Phase 17: always-visible diagnostics (no need to open the D panel).
   const pitchConfidence = cond.stableVoiced ? cond.stableConfidence : (mic.current?.confidence ?? 0);
-  // "nativo" = modelo do engine (sem download); "HD" = pack de samples.
-  // "gravado" = sample empacotado no app (já instalado); "nativo" = modelo do engine.
+  // TDR-22: só som gravado — "carregando" / "silêncio" quando o pack não está pronto.
   const sampleLabel = samples.packs
-    .map((p) => `${SAMPLE_LABELS[p.instrument]}: ${p.useReal && p.status !== "unavailable" ? "gravado" : "nativo"}`)
+    .map((p) => `${SAMPLE_LABELS[p.instrument]}: ${p.status === "ready" ? "gravado" : p.status === "unavailable" ? "silêncio" : "carregando"}`)
     .join(" · ");
 
   // Phase 10: every mic state gets a recovery card; advisories while live.
@@ -624,6 +619,8 @@ function SessionBody() {
           {(INSTRUMENTS as readonly InstrumentId[]).map((id) => {
             const on = cond.active[id];
             const pend = cond.pendingFull.find((p) => p.instrument === id);
+            // TDR-22: no real recording → unavailable (the app plays no synth).
+            const real = hasRealSound(id);
             return (
               <button
                 key={id}
@@ -631,7 +628,8 @@ function SessionBody() {
                 data-active={on ? "true" : "false"}
                 onClick={() => cond.toggleInstrument(id)}
                 aria-pressed={on}
-                title={pend ? `Queued → bar ${pend.effectiveBar}` : on ? "On (click to remove, quantized)" : "Off (click to add, quantized)"}
+                disabled={!real && !on}
+                title={!real ? "Sem gravação real livre — indisponível (o app não toca som sintetizado)" : pend ? `Queued → bar ${pend.effectiveBar}` : on ? "On (click to remove, quantized)" : "Off (click to add, quantized)"}
               >
                 {on ? <CheckIcon size={12} /> : <PlusIcon size={12} />} {id}{pend ? " (fila)" : ""}
               </button>
@@ -648,7 +646,6 @@ function SessionBody() {
         <SamplePackPanel
           packs={samples.packs}
           loadedCount={samples.loadedCount}
-          onToggle={samples.setUseReal}
         />
         <SampleCredits />
       </section>

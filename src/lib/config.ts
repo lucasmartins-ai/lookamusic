@@ -7,8 +7,13 @@ import type { InstrumentId } from "@/domain/types";
 
 export const config = {
   audio: {
-    /** Worklet analysis block in samples. 2048 @48k ≈ 43 ms per observation. */
+    /** Worklet analysis window in samples. 2048 @48k ≈ 43 ms. */
     blockSize: 2048,
+    /**
+     * TDR-22: hop between analyses (window slides by this). 512 @48k ≈ 11 ms
+     * per observation. Mirrored in public/worklets/pitch-processor.js.
+     */
+    hopSize: 512,
     /** Microphone sample rate request (0 = device default). */
     sampleRate: 0,
     /**
@@ -38,10 +43,20 @@ export const config = {
     uiThrottleHz: 12,
   },
   note: {
+    /**
+     * TDR-22 (benchmark Vocadito: 40 trechos de canto anotados por músicos):
+     * os tempos abaixo foram reduzidos junto com o hop de análise 2048 → 512.
+     * As janelas antigas (mediana de 5 blocos de 43 ms + 120 ms de
+     * estabilidade + 80–170 ms de confirmação) não enxergavam notas < ~200 ms
+     * (mediana anotada: 145 ms): ritmo/onsets 24% → 74%, nota certa no tempo
+     * 48,5% → 74,4%. Antes: smoothingWindow 5, stabilityMs 120, confirmMs 80,
+     * weakConfirmMs 120, octaveConfirmMs 200, releaseExtraMs 150,
+     * adaptive.weakConfirmMaxMs 170, adaptive.releaseExtraMaxMs 80.
+     */
     /** Phase 2+: confidence gate raw pitch → candidate. */
     confidenceThreshold: 0.5,
     /** Phase 2+: median smoothing window. */
-    smoothingWindow: 5,
+    smoothingWindow: 3,
     /**
      * Hotfix voz estável: histerese em semitons antes de trocar de candidato
      * (absorve vibrato vocal de ±1 st; antes 0.75 picotava a melodia e a
@@ -49,7 +64,7 @@ export const config = {
      */
     hysteresisSemitones: 1.0,
     /** Phase 2+: minimum stable duration to emit a NoteEvent. */
-    stabilityMs: 120,
+    stabilityMs: 40,
     /**
      * Hotfix voz estável: a excursão além da histerese precisa persistir
      * este tempo antes de trocar o candidato (oscilação breve nunca
@@ -59,7 +74,7 @@ export const config = {
      * (|Δ| ≥ `strongStepSemitones`); excursões pequenas usam
      * `weakConfirmMs`, quase sempre vibrato.
      */
-    confirmMs: 80,
+    confirmMs: 30,
     /**
      * Fase 17 (tolerância a vibrato): excursões pequenas — de
      * `hysteresisSemitones` até `strongStepSemitones` — são quase sempre
@@ -68,7 +83,7 @@ export const config = {
      * então 120 ms já absorve o balanço periódico sem engolir um semitom
      * cantado de verdade (que persiste e confirma).
      */
-    weakConfirmMs: 120,
+    weakConfirmMs: 40,
     /**
      * Fase 17: |Δ| ≥ este valor contra a nota aberta conta como mudança
      * deliberada e usa o `confirmMs` rápido (resposta musical preservada).
@@ -79,7 +94,7 @@ export const config = {
      * (erro clássico de oitava do detector; salto cantado de verdade
      * persiste e confirma com atraso).
      */
-    octaveConfirmMs: 200,
+    octaveConfirmMs: 100,
     /**
      * Hotfix voz estável: folga extra após `stabilityMs` antes de fechar a
      * nota em silêncio (consoantes oclusivas não cortam a nota; o
@@ -88,7 +103,7 @@ export const config = {
      * e oclusivas curtas) sem engolir o fim de nota (o teste de duração
      * exata em `melody-stabilization` fecha com 280 ms de silêncio).
      */
-    releaseExtraMs: 150,
+    releaseExtraMs: 60,
     /**
      * Fase 17 (estabilização adaptativa): enquanto a voz fica afinada e
      * confiante por `lockAfterMs`, a nota "trava" e a janela de confirmação
@@ -107,9 +122,9 @@ export const config = {
       /** Clareza mínima por frame (proxy de energia periódica da voz). */
       lockClarityMin: 0.55,
       /** Teto da confirmação pequena quando travado (ms). */
-      weakConfirmMaxMs: 170,
+      weakConfirmMaxMs: 60,
       /** Folga de release adicional quando travado (ms). */
-      releaseExtraMaxMs: 80,
+      releaseExtraMaxMs: 40,
     },
   },
   rhythm: {
@@ -331,12 +346,11 @@ export const config = {
     /**
      * Phase 16+ / v1.3.3: sample packs (real sound). Desde a v1.3.3 os packs
      * vêm EMPACOTADOS no app (`public/samples/**`, mesma origem) e carregam
-     * sozinhos no primeiro uso — não existe mais "baixar". O `WebAudioSink`
-     * nativo (modelos de parciais aditivos) segue como fallback automático:
-     * `useSamples` é só uma *preferência* — o sink cai no nativo sempre que o
-     * buffer não está decodificado, o decode falha ou |detune| passa de
-     * `maxDetuneSt`. Guitarra segue 100% nativa (sem pack com licença limpa).
-     * Os pesos são tetos de tamanho do bundle empacotado.
+     * sozinhos no primeiro uso — não existe mais "baixar". TDR-22: são a
+     * ÚNICA fonte de som — buffer não decodificado / |detune| > `maxDetuneSt`
+     * = nota em silêncio (veja `synthFallback`); guitarra, sax e acordeão não
+     * têm gravação livre e ficam indisponíveis. Os pesos são tetos de tamanho
+     * do bundle empacotado.
      */
     samples: {
       /** Cache API name (versioned key migrates between pack versions). */
@@ -347,16 +361,25 @@ export const config = {
        * v2, que guardava áudios remotos (liberava ~6 MB do usuário e evita
        * qualquer chave remota órfã).
        */
-      cacheVersion: 3,
+      cacheVersion: 4, // TDR-22: packs novos (Virtuosity, Salamander 2 camadas, baixo, violino, cordas)
       /** Max pitch correction applied via playbackRate (±st, else synth). */
       maxDetuneSt: 2,
       /** localStorage key for the per-instrument real/synth toggle. */
       toggleStorageKey: "lookamusic-samples-use-real-v1",
-      piano: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
+      /**
+       * TDR-22 ("só sons reais, nada sintetizado"): false = nota sem sample
+       * pronto fica em silêncio e instrumento sem pack real não toca. true
+       * reativa o modelo nativo (aditivo) como reserva — só para depuração.
+       */
+      synthFallback: false,
+      piano: { useSamples: true, weightBudgetBytes: 4 * 1024 * 1024, decodeBudgetMs: 2000 },
       // Violão upstream é FLAC lossless (FreePats CC0) — ~3,8 MB reais; o teto
       // foi elevado de 3 MB para caber o pack de verdade.
       violao: { useSamples: true, weightBudgetBytes: 5 * 1024 * 1024, decodeBudgetMs: 1500 },
-      drums: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1000 },
+      drums: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1500 },
+      bass: { useSamples: true, weightBudgetBytes: 1.5 * 1024 * 1024, decodeBudgetMs: 1000 },
+      violin: { useSamples: true, weightBudgetBytes: 2.5 * 1024 * 1024, decodeBudgetMs: 1500 },
+      strings: { useSamples: true, weightBudgetBytes: 2 * 1024 * 1024, decodeBudgetMs: 1500 },
       guitar: { useSamples: false, weightBudgetBytes: 0, decodeBudgetMs: 0 },
     },
   },
@@ -416,6 +439,11 @@ export const config = {
      * 1 / 0,75 / 0,35 / 0,25 no benchmark a capela (voz recente decide).
      */
     evidenceBars: 0.5,
+    /**
+     * TDR-22: piso da janela de evidência em segundos — com o andamento
+     * detectado mais alto, meio compasso virava < 1 s de voz e o acorde pulava.
+     */
+    minEvidenceSec: 2.5,
     /** TDR-21: peso do trecho anterior (mesmo tamanho) — contexto com decaimento. */
     olderEvidenceWeight: 0.35,
     /** Phase 4+: max identical consecutive bars (ambient/static exempt). */
@@ -445,11 +473,12 @@ export const config = {
      */
     planLeadSec: 0.3,
     /**
-     * Hotfix a capela (TDR-21): o acorde é re-decidido N vezes por compasso
-     * (2 = meio compasso). Corta pela metade o atraso harmonia→voz do modo ao
-     * vivo; bateria continua por compasso inteiro.
+     * Acorde re-decidido N vezes por compasso. TDR-21 usou 2 (meio
+     * compasso); TDR-22 voltou a 1: com a transcrição mais fina (hop 512) o
+     * andamento detectado sobe e meio compasso virava troca de acorde a cada
+     * ~1,5 s (37/min no Twinkle). Suportado >1; bateria sempre por compasso.
      */
-    harmonySlotsPerBar: 2,
+    harmonySlotsPerBar: 1,
     /** Phase 8+: harmonia re-avaliada a cada N compassos (1 = todo compasso). */
     harmonyReestimateEveryBars: 1,
     /** Phase 8+: teto do anel de melodia no MusicalState (memória limitada). */

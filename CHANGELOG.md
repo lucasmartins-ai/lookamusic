@@ -4,6 +4,29 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.4.0 — Notas medidas contra anotação humana e só instrumentos gravados] — OK
+
+Pedido do usuário: "a precisão está em 25%", "parece som fake, sintetizado",
+"não acompanha o ritmo", "só quero sons reais". Ver **TDR-22**.
+
+- **"Precisão 25%" não era o app**: era o Vocal Coach medindo a afinação do
+  cantor contra A440 (±12¢). Rótulo agora "Sua afinação (±12¢)" com explicação.
+- **Benchmark com anotação humana** (Vocadito, 40 trechos, CC BY 4.0): o detector
+  acertava 95,1% — o problema era a montagem das notas. Análise a cada 11 ms
+  (era 43 ms), YIN via FFT (21× mais rápido) e estabilizador mais ágil:
+  ritmo/onsets **24,1% → 73,9%**, notas **9,0% → 44,0%**, nota certa no tempo
+  **48,5% → 74,3%**. App real: 49 → **112** notas em 40 s de canto.
+- **Só som gravado**: bateria acústica Virtuosity (era kit de sintetizador),
+  piano Salamander original com 2 intensidades, + contrabaixo, violino e cordas
+  gravados. Sem fallback sintetizado (nota sem sample = silêncio); guitarra, sax
+  e acordeão indisponíveis. App real: **0 osciladores**. Export WAV também.
+- Batidas de bateria soam pelo tempo gravado (eram cortadas em 50–140 ms).
+- Harmonia ao vivo reajustada à transcrição mais fina (acorde por compasso,
+  evidência ≥ 2,5 s, V maior no tom menor).
+- Mobile: créditos longos quebravam o layout (46 px de rolagem) — corrigido.
+- Gate: **696/696** unitários (+2 benchmarks opcionais), typecheck 0, build verde,
+  **E2E 12/12** (+1 opcional a capela).
+
 ## [v1.3.5 — Teste real com voz a capela: som real no Cantarolar Primeiro e harmonia pela voz real] — OK
 
 Pedido do usuário: "ainda não tá funcionando… baixa uma música a capela e faz

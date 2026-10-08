@@ -7,7 +7,15 @@
 import type { Composition, InstrumentId, PitchClass } from "@/domain/types";
 import { barQuarters } from "@/features/music/rhythm/meter";
 import { createBand } from "@/features/instruments/registry";
-import { WebAudioSink, createMasterBus } from "@/features/instruments/audio-sink";
+import { createMasterBus } from "@/features/instruments/audio-sink";
+import { createInstrumentSink } from "@/features/instruments/sample-voice";
+import {
+  ensureSampleDecoder,
+  getSampleCache,
+  hasRealSound,
+  packMetaOf,
+  type SampleInstrumentId,
+} from "@/features/instruments/sample-store";
 import {
   barQuarters as planBarQuarters,
   planAccordion,
@@ -246,42 +254,37 @@ export async function renderToWav(
   const masterBus = createMasterBus(offlineCtx, offlineCtx.destination);
   const masterGain = masterBus.input;
 
-  // 1. Synthesize Lead Melody Voice
-  const melodyGain = offlineCtx.createGain();
-  melodyGain.gain.value = 0.85;
-  melodyGain.connect(masterGain);
+  // TDR-22: the export plays the same recorded instruments as the app — no
+  // synthesis. Decode every pack it needs before the offline render starts.
+  ensureSampleDecoder();
+  const cache = getSampleCache();
+  const needed = new Set<SampleInstrumentId>(["piano"]);
+  for (const id of Object.keys(comp.arrangement.active) as InstrumentId[]) {
+    if (comp.arrangement.active[id] && hasRealSound(id)) needed.add(id as SampleInstrumentId);
+  }
+  for (const id of needed) await cache.loadPack(packMetaOf(id).urls);
 
+  // 1. Lead melody on the real piano
+  const melodySink = createInstrumentSink(offlineCtx, masterGain, "piano", cache);
+  melodySink.setVolume(0.85);
   for (const note of comp.melody) {
     if (note.duration <= 0) continue;
-    const start = Math.max(0, note.startTime);
-    const dur = Math.max(0.04, note.duration);
-    const freq = note.pitch > 0 ? note.pitch : midiToFreq(note.midi);
-
-    const osc = offlineCtx.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(freq, start);
-
-    const filter = offlineCtx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1800, start);
-
-    const env = offlineCtx.createGain();
-    const peak = Math.max(0.0001, Math.min(1, note.velocity * 0.8));
-    env.gain.setValueAtTime(0.0001, start);
-    env.gain.linearRampToValueAtTime(peak, start + 0.02);
-    env.gain.setValueAtTime(peak, start + Math.max(0.02, dur - 0.04));
-    env.gain.exponentialRampToValueAtTime(0.0001, start + dur + 0.04);
-
-    osc.connect(filter);
-    filter.connect(env);
-    env.connect(melodyGain);
-
-    osc.start(start);
-    osc.stop(start + dur + 0.05);
+    melodySink.tone({
+      freq: note.pitch > 0 ? note.pitch : midiToFreq(note.midi),
+      at: Math.max(0, note.startTime),
+      dur: Math.max(0.04, note.duration),
+      velocity: note.velocity,
+      type: "triangle",
+      attack: 0.004,
+      release: 0.6,
+      cutoff: 2800,
+      detune: 0,
+      octaveGain: 0,
+    });
   }
 
-  // 2. Synthesize Accompaniment Instruments via Engine Sinks
-  const band = createBand((_id) => new WebAudioSink(offlineCtx, masterGain));
+  // 2. Accompaniment through the same sample-backed sinks as the live band
+  const band = createBand((id) => createInstrumentSink(offlineCtx, masterGain, id, cache));
 
   // Apply mixer settings
   for (const inst of Object.keys(comp.instruments) as InstrumentId[]) {

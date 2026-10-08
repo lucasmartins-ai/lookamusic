@@ -109,8 +109,9 @@ export function VocalCoachPanel({
               color: "var(--muted)",
               fontWeight: 600,
             }}
+            title="Quanto do tempo a SUA voz ficou a até ±12 centésimos de uma nota exata do piano (A4 = 440 Hz). Mede a sua afinação, não o acerto do app. Cantando sem acompanhamento é normal ficar perto de 25%."
           >
-            Precisão: <strong style={{ color: "var(--text)" }}>{accuracyScore}%</strong>
+            Sua afinação (±12¢): <strong style={{ color: "var(--text)" }}>{accuracyScore}%</strong>
           </span>
           {onResetStats && (
             <button

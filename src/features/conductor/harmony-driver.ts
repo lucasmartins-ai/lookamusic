@@ -100,7 +100,10 @@ function primaryBonus(chord: Chord, key: KeyEstimate): number {
   const d = degreeOf(chord.root, key.root);
   const primary = [0, 5, 7];
   const relative = key.mode === "minor" ? 3 : 9;
-  if (primary.includes(d)) return config.harmony.primaryChordBonus;
+  // In minor the dominant players reach for is the MAJOR V / V7, not the
+  // natural-minor v (a held B after G–B–D read as Bm in E minor).
+  const weakMinorV = key.mode === "minor" && d === 7 && chord.quality !== "major" && chord.quality !== "dom7";
+  if (primary.includes(d) && !weakMinorV) return config.harmony.primaryChordBonus;
   if (d === relative) return config.harmony.primaryChordBonus / 2;
   return 0;
 }

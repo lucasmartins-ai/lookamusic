@@ -3,6 +3,7 @@
  * style preset + energy mode + lineup toggles + visible pending queue.
  * Business logic lives in `features/music/arrangement/useArrangement.ts`.
  */
+import { hasRealSound } from "@/features/instruments/sample-store";
 import { INSTRUMENTS, type ArrangementState, type InstrumentId } from "@/domain/types";
 import type { PendingTransition } from "@/features/music/arrangement/state";
 import type { EnergyLevel } from "@/features/music/arrangement/dynamics";
@@ -123,6 +124,7 @@ export function ArrangementPanel({
               className={`pill${on ? " live" : ""}${q ? " queued" : ""}`}
               onClick={() => onToggleInstrument(id)}
               aria-pressed={on}
+              disabled={!hasRealSound(id) && !on}
               aria-label={`${on ? "Remover" : "Adicionar"} ${LABELS[id]}${q ? ` (entra no compasso ${q.effectiveBar + 1})` : ""}`}
               title={
                 q

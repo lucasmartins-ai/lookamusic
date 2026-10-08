@@ -3,6 +3,7 @@
  * row is audition (preview) + mute/solo/volume/pan, all real engine params.
  * Business logic lives in `features/instruments/useBand.ts`.
  */
+import { hasRealSound } from "@/features/instruments/sample-store";
 import { INSTRUMENTS, type InstrumentId } from "@/domain/types";
 import type { MixerState } from "@/features/instruments/mixer";
 
@@ -52,6 +53,7 @@ export function BandPanel({
               <button
                 className="channel-name"
                 onClick={() => onAudition(id)}
+                disabled={!hasRealSound(id)}
                 aria-label={`Ouvir ${LABELS[id]} (prévia de 2 compassos)`}
                 title="Prévia de 2 compassos (C→G no andamento atual)"
               >

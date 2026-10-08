@@ -1,6 +1,7 @@
 /**
  * Piano sample pack: Salamander Grand Piano V3 (Yamaha C5, Alexander
- * Holmberg), 1 velocity layer sampled every minor 3rd (MIDI 21,24,…,108).
+ * Holmberg), 2 velocity layers sampled every minor 3rd (MIDI 21,24,…,108),
+ * from the original FLAC release (TDR-22; was the tonejs 1-layer mp3 copy).
  * License CC-BY-3.0 → credits screen mandatory.
  *
  * ENTREGUE COM O APP (v1.3.3): os mp3 vivem em `public/samples/piano/` e
@@ -25,24 +26,27 @@ const BASE_URL = "/samples/piano";
 function buildNotes(): PitchedPackManifest["notes"] {
   const notes: PitchedPackManifest["notes"] = [];
   // Minor-3rd grid 21 (A0) … 108 (C8); ±1 st residual is retuned at playback.
+  // Two recorded dynamics (Salamander v6 ≈ mp, v12 ≈ f): a soft note has the
+  // darker timbre of a soft hammer, not just a quieter loud note.
   for (let midi = 21; midi <= 108; midi += 3) {
-    notes.push({ midi, url: `${BASE_URL}/${sampleName(midi)}.mp3`, velocity: 0.8 });
+    notes.push({ midi, url: `${BASE_URL}/${sampleName(midi)}_v6.mp3`, velocity: 0.45 });
+    notes.push({ midi, url: `${BASE_URL}/${sampleName(midi)}_v12.mp3`, velocity: 0.85 });
   }
   return notes;
 }
 
 export const PIANO_PACK: PitchedPackManifest = {
   kind: "pitched",
-  packId: "salamander-grand-v8",
+  packId: "salamander-grand-v3-2layer",
   instrument: "piano",
-  version: 3,
+  version: 4,
   license: "CC-BY-3.0",
   attribution:
-    "Salamander Grand Piano by Alexander Holmberg — CC-BY 3.0 (http://freepats.zenvoid.org/Piano/salamander-grand-piano.html)",
-  moreInfoUrl: "https://tonejs.github.io/audio/salamander/",
+    "Salamander Grand Piano V3 by Alexander Holmberg — CC-BY 3.0 (https://github.com/sfzinstruments/SalamanderGrandPiano)",
+  moreInfoUrl: "https://github.com/sfzinstruments/SalamanderGrandPiano",
   baseUrl: BASE_URL,
   range: { minMidi: 21, maxMidi: 108 },
   notes: buildNotes(),
-  // 30 mp3s empacotados (~64 KB cada, 1 camada, 4 s) ≈ 1,9 MB no instalador.
-  totalBytesEstimate: 1_950_000,
+  // 60 mp3s (30 notas × 2 camadas, 4 s, mono 128 kbps) ≈ 3,8 MB.
+  totalBytesEstimate: 3_800_000,
 };

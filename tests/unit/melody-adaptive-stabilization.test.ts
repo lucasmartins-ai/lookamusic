@@ -62,13 +62,16 @@ describe("Phase 17 — adaptive lock", () => {
     expect(st.steadyMs).toBeGreaterThanOrEqual(config.note.adaptive.lockAfterMs);
     expect(st.weakConfirmMs).toBe(config.note.adaptive.weakConfirmMaxMs);
 
-    // Excursion to G#4 (exactly 1 st). Unlocked this would confirm at
-    // 620 + weakConfirmMs (120) = 740; the locked window (170) holds to ~790.
-    stab.push(smObs(G_4 + 1, 620));
-    for (let t = 640; t <= 760; t += 20) stab.push(smObs(G_4 + 1, t));
+    // Excursion to G#4 (exactly 1 st) from 620 ms. Unlocked it would commit
+    // at 620 + weakConfirmMs + stabilityMs; locked it needs weakConfirmMaxMs.
+    const n = config.note;
+    const unlockedCommit = 620 + n.weakConfirmMs + n.stabilityMs;
+    const lockedCommit = 620 + n.adaptive.weakConfirmMaxMs + n.stabilityMs;
+    expect(lockedCommit).toBeGreaterThan(unlockedCommit);
+    for (let t = 620; t <= unlockedCommit; t += 20) stab.push(smObs(G_4 + 1, t));
     expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
 
-    for (let t = 780; t <= 1000; t += 20) stab.push(smObs(G_4 + 1, t));
+    for (let t = unlockedCommit + 20; t <= lockedCommit + 200; t += 20) stab.push(smObs(G_4 + 1, t));
     expect(names(seen)).toEqual(["NoteStarted", "NoteEnded", "NoteStarted"]);
     expect(stab.openNote()?.midi).toBe(G_4 + 1);
   });
@@ -87,13 +90,18 @@ describe("Phase 17 — release & octave protection", () => {
   it("locked notes survive a breath longer than the base release window", () => {
     const { stab, seen } = harness();
     for (let t = 0; t <= 600; t += 20) stab.push(smObs(G_4, t));
-    // 280 ms of silence: base close window is 120+150 = 270 (would close),
-    // locked adds +80 → 350, so the note stays open.
-    for (let t = 620; t <= 900; t += 20) stab.push(smUnvoiced(t));
+    // A breath longer than the base close window (stability + release
+    // extra) but shorter than the locked one (+ releaseExtraMaxMs).
+    const n = config.note;
+    const base = n.stabilityMs + n.releaseExtraMs;
+    const locked = base + n.adaptive.releaseExtraMaxMs;
+    const breath = locked - 20;
+    expect(breath).toBeGreaterThanOrEqual(base);
+    for (let t = 620; t < 620 + breath; t += 20) stab.push(smUnvoiced(t));
     expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(0);
     expect(stab.openNote()).not.toBeNull();
     // Past the extended window it closes normally.
-    for (let t = 920; t <= 1100; t += 20) stab.push(smUnvoiced(t));
+    for (let t = 620 + breath; t <= 620 + locked + 200; t += 20) stab.push(smUnvoiced(t));
     expect(seen.filter((s) => s.name === "NoteEnded")).toHaveLength(1);
   });
 
