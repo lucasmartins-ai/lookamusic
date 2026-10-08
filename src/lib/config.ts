@@ -164,6 +164,10 @@ export const config = {
      * fora virava o tom e a banda inteira pulava junto).
      */
     switchMargin: 0.12,
+    /** Hotfix a capela: o desafiante precisa vencer por este tempo seguido (ms). */
+    switchDwellMs: 4000,
+    /** Hotfix a capela: abaixo desta confiança o tom ainda se move livre. */
+    lockConfidence: 0.5,
     /** Phase 3+: min confidence delta to emit KeyUpdated. */
     updateDelta: 0.15,
   },
@@ -391,16 +395,29 @@ export const config = {
     /** Phase 4+: penalty when the pick would repeat the previous bar(s). */
     repeatPenalty: 0.4,
     /**
-     * Hotfix harmonia estável: o acorde atual SEGURA enquanto a voz recente
-     * (média ponderada por duração) couber nele com este fit (0–1). Só troca
-     * quando a melodia sai claramente do acorde — vibrato/nota de passagem
-     * não muda mais a harmonia a cada compasso.
+     * Hotfix a capela (TDR-21): escolha do acorde pela voz REAL (centésimos
+     * preservados). Nota a ≤ `chordToneSt` de um tom do acorde = +1; atrito de
+     * meio-tom (`rubMinSt`–`rubMaxSt`) = −1; outra tensão consonante =
+     * `holdScaleToneWeight`. Soma-se `scorerWeight` × nota da Fase 4 e
+     * `holdBonus` p/ o acorde que já está soando (só troca se outro for
+     * claramente melhor).
      */
-    holdFitMin: 0.6,
+    chordToneSt: 0.5,
+    rubMinSt: 0.6,
+    rubMaxSt: 1.4,
+    scorerWeight: 0.3,
+    holdBonus: 0.15,
+    /** TDR-21: bônus p/ I/IV/V (metade p/ vi/III) quando a voz é ambígua. */
+    primaryChordBonus: 0.1,
     /** Hotfix harmonia estável: peso de nota da escala fora do acorde no fit. */
     holdScaleToneWeight: 0.4,
-    /** Hotfix harmonia estável: compassos de voz anteriores usados como evidência. */
-    evidenceBars: 1,
+    /**
+     * Compassos de voz anteriores usados como evidência. TDR-21: 0,5 venceu
+     * 1 / 0,75 / 0,35 / 0,25 no benchmark a capela (voz recente decide).
+     */
+    evidenceBars: 0.5,
+    /** TDR-21: peso do trecho anterior (mesmo tamanho) — contexto com decaimento. */
+    olderEvidenceWeight: 0.35,
     /** Phase 4+: max identical consecutive bars (ambient/static exempt). */
     maxConsecutiveRepeats: 2,
     /** Phase 4+: styles exempt from the repetition penalty. */
@@ -427,6 +444,12 @@ export const config = {
      * Precisa cobrir lookahead (120 ms) + tick do conductor.
      */
     planLeadSec: 0.3,
+    /**
+     * Hotfix a capela (TDR-21): o acorde é re-decidido N vezes por compasso
+     * (2 = meio compasso). Corta pela metade o atraso harmonia→voz do modo ao
+     * vivo; bateria continua por compasso inteiro.
+     */
+    harmonySlotsPerBar: 2,
     /** Phase 8+: harmonia re-avaliada a cada N compassos (1 = todo compasso). */
     harmonyReestimateEveryBars: 1,
     /** Phase 8+: teto do anel de melodia no MusicalState (memória limitada). */
@@ -449,6 +472,11 @@ export const config = {
     pinHoldsAuto: true,
   },
   recording: {
+    /**
+     * Hotfix a capela: volume da melodia-guia (piano real) no loop do
+     * Cantarolar Primeiro — baixo, a voz do usuário é a melodia.
+     */
+    guideMelodyVolume: 0.45,
     /** Phase 11+: IndexedDB database name. */
     dbName: "lookamusic",
     /** Phase 11+: IndexedDB database version. */

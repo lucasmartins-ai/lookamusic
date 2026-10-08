@@ -562,6 +562,14 @@ export class Conductor {
     if (rep.dispatched > 0) this.latency.markAccompaniment(Date.now());
   }
 
+  /**
+   * Plans harmony slots (`config.conductor.harmonySlotsPerBar` per bar) just
+   * in time. Each slot re-decides the chord from the voice sung up to then,
+   * so the band answers a melody move within half a bar instead of a whole
+   * one. Drums render the whole bar at slot 0 (pitch-independent groove);
+   * pitched parts render the bar with the slot's chord and keep only the
+   * slot's beats. Returns the bars that got their first slot planned.
+   */
   private planAhead(nowSec: number): number[] {
     const meter = this.engines.meter.meter();
     this.transport.setMeter(meter);
@@ -570,59 +578,83 @@ export class Conductor {
     const currentBar = Math.floor(barFloat);
     const planned: number[] = [];
     const toAudio = this.opts.toAudioTime ?? ((t: number) => t);
+    const slots = Math.max(1, Math.floor(config.conductor.harmonySlotsPerBar));
+    const barQ = barQuarters(meter);
+    const beatSec = this.transport.beatSec();
     for (let b = currentBar; b < currentBar + config.conductor.planAheadBars; b++) {
-      if (this.plannedBars.has(b)) continue;
       if (b < 0) continue;
-      // Decide a future bar as late as the lookahead allows, so its chord
-      // hears the voice sung right up to the downbeat.
-      if (b > currentBar && this.transport.barStartSec(b) - nowSec > config.conductor.planLeadSec) continue;
-      const chord = this.harmonizeBar(b, nowSec);
-      const input = this.passageInput(chord, b, bpm, meter);
-      const active = this.engines.arrangement.snapshot().active;
-      const degraded = this.degradation.snapshot();
-      const events: MusicalEvent[] = [];
-      for (const id of Object.keys(active) as InstrumentId[]) {
-        if (!active[id]) continue;
-        // Minimal mode never silences: drums + bass always render.
-        if (degraded.level === "minimal" && id !== "drums" && id !== "bass") continue;
-        events.push(...PLAN_OF[id](input, 1).map((e) => ({ ...e, bar: b })));
-      }
-      const barStartTransport = this.transport.barStartSec(b);
-      // Never stamp "now": the scheduler samples its clock fresh at dispatch,
-      // so a now-stamped item reads ms old and counts late. +20 ms is
-      // inaudible and absorbs the planner/dispatch skew (grace: scheduler).
-      const audioTime = toAudio(Math.max(barStartTransport, nowSec + 0.02));
-      this.scheduler.push([{ audioTime, bar: b, events }]);
-      this.plannedBars.add(b);
-      planned.push(b);
-      // Bound the planned set (soak-safe): forget bars far behind.
-      if (this.plannedBars.size > 16) {
-        const sorted = [...this.plannedBars].sort((x, y) => x - y);
-        for (const old of sorted.slice(0, this.plannedBars.size - 16)) this.plannedBars.delete(old);
+      for (let slot = 0; slot < slots; slot++) {
+        const slotKey = b * slots + slot;
+        if (this.plannedBars.has(slotKey)) continue;
+        const fromBeat = (slot * barQ) / slots;
+        const toBeat = ((slot + 1) * barQ) / slots;
+        const slotStart = this.transport.barStartSec(b) + fromBeat * beatSec;
+        // Decide as late as the lookahead allows, so the chord hears the
+        // voice sung right up to the slot.
+        if (slotStart - nowSec > config.conductor.planLeadSec) continue;
+        const chord = this.harmonizeSlot(b, slot, slotStart, nowSec);
+        const input = this.passageInput(chord, b, bpm, meter);
+        const active = this.engines.arrangement.snapshot().active;
+        const degraded = this.degradation.snapshot();
+        const events: MusicalEvent[] = [];
+        for (const id of Object.keys(active) as InstrumentId[]) {
+          if (!active[id]) continue;
+          // Minimal mode never silences: drums + bass always render.
+          if (degraded.level === "minimal" && id !== "drums" && id !== "bass") continue;
+          if (id === "drums" && slot > 0) continue;
+          for (const e of PLAN_OF[id](input, 1)) {
+            if (id !== "drums" && (e.beat < fromBeat - 1e-9 || e.beat >= toBeat - 1e-9)) continue;
+            events.push({ ...e, bar: b, beat: id === "drums" ? e.beat : e.beat - fromBeat });
+          }
+        }
+        // Never stamp "now": the scheduler samples its clock fresh at dispatch,
+        // so a now-stamped item reads ms old and counts late. +20 ms is
+        // inaudible and absorbs the planner/dispatch skew (grace: scheduler).
+        const audioTime = toAudio(Math.max(slotStart, nowSec + 0.02));
+        this.scheduler.push([{ audioTime, bar: b, events }]);
+        this.plannedBars.add(slotKey);
+        if (slot === 0) planned.push(b);
+        // Bound the planned set (soak-safe): forget slots far behind.
+        if (this.plannedBars.size > 16) {
+          const sorted = [...this.plannedBars].sort((x, y) => x - y);
+          for (const old of sorted.slice(0, this.plannedBars.size - 16)) this.plannedBars.delete(old);
+        }
       }
     }
     return planned;
   }
 
-  private harmonizeBar(bar: number, nowSec: number): Chord {
+  private harmonizeSlot(bar: number, slot: number, slotStart: number, nowSec: number): Chord {
     const key = this.engines.key.estimate() ?? this.state.currentKey();
     const scaleId = scaleIdForKey(key);
     const barStart = this.transport.barStartSec(bar);
     const barEnd = barStart + this.transport.barSec();
-    // Evidence = what was ACTUALLY sung: the previous bar(s) + this bar so
-    // far. Open notes count up to now. (Before, the slice was this bar's
-    // future — always empty at plan time — so chords were chosen blind.)
-    const from = barStart - config.harmony.evidenceBars * this.transport.barSec();
+    const theoryEvery = this.degradation.snapshot().theoryEveryBars;
+    const shouldReestimate =
+      this.lastChord === undefined || (bar % Math.max(1, theoryEvery) === 0 && (slot === 0 || theoryEvery <= 1));
+    if (!shouldReestimate && this.lastChord) return this.lastChord;
+    // Evidence = what was ACTUALLY sung before this slot, up to now (open
+    // notes count up to now). The last `evidenceBars` weigh in full; the
+    // same span before that keeps context at `olderEvidenceWeight` (decay,
+    // not a hard cut: a held B after G–B–D still reads as G).
+    const span = config.harmony.evidenceBars * this.transport.barSec();
+    const recentFrom = slotStart - span;
+    const from = recentFrom - span;
+    const until = Math.max(nowSec, slotStart);
+    const older = config.harmony.olderEvidenceWeight;
     const slice = this.state
       .melodyNotes()
-      .filter((n) => n.startTime < barEnd && n.startTime + Math.max(n.duration, 0) >= from)
-      .map((n) => (n.duration > 0 ? n : { ...n, duration: Math.max(0, nowSec - n.startTime) }));
+      .map((n) => (n.duration > 0 ? n : { ...n, duration: Math.max(0, nowSec - n.startTime) }))
+      .filter((n) => n.startTime < until && n.startTime + n.duration > from)
+      .map((n) => {
+        const s = Math.max(n.startTime, from);
+        const e = Math.min(n.startTime + n.duration, until);
+        const oldPart = Math.max(0, Math.min(e, recentFrom) - s);
+        return { ...n, duration: e - s - oldPart + oldPart * older };
+      });
     const phrases = this.state.phraseRecords();
     const phrasePosition = this.phrasePositionFor(barStart, barEnd, phrases);
     const style = harmonyStyleFor(this.styleId);
-    const theoryEvery = this.degradation.snapshot().theoryEveryBars;
-    const shouldReestimate = bar % Math.max(1, theoryEvery) === 0 || this.lastChord === undefined;
-    if (!shouldReestimate && this.lastChord) return this.lastChord;
     const { chord, confidence } = chooseChordForBar({
       key,
       scaleId,
@@ -634,17 +666,20 @@ export class Conductor {
       recentChords: [...this.chordHistory],
       seed: `${this.seed}-bar${bar}-${this.styleId}`,
     });
+    const changed = !this.lastChord || this.lastChord.root !== chord.root || this.lastChord.quality !== chord.quality;
     this.lastChord = chord;
-    this.chordHistory.push(chord);
-    if (this.chordHistory.length > 16) this.chordHistory.splice(0, this.chordHistory.length - 16);
-    const event: ChordEvent = {
-      id: newId("chord"),
-      chord,
-      startBar: bar,
-      durationBars: 1,
-      confidence,
-    };
-    this.events.emit("ChordChanged", event);
+    if (slot === 0 || changed) {
+      this.chordHistory.push(chord);
+      if (this.chordHistory.length > 16) this.chordHistory.splice(0, this.chordHistory.length - 16);
+      const event: ChordEvent = {
+        id: newId("chord"),
+        chord,
+        startBar: bar,
+        durationBars: 1,
+        confidence,
+      };
+      this.events.emit("ChordChanged", event);
+    }
     return chord;
   }
 

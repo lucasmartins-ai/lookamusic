@@ -1,6 +1,6 @@
 # TDR-20 — Harmonia que segura e segue a voz
 
-Date: 2026-10-08. Status: accepted.
+Date: 2026-10-08. Status: accepted — regra de segurar (`holdFitMin`) e janela de evidência revistas pelo **TDR-21** (benchmark a capela).
 
 ## Contexto
 

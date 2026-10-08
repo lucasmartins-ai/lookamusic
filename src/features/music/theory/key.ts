@@ -182,7 +182,7 @@ export class KeyEstimator {
           if (first) this.pending.delete(first);
         }
       }),
-      events.on("NoteEnded", (e) => this.onNoteEnded(e.id, e.duration)),
+      events.on("NoteEnded", (e) => this.onNoteEnded(e.id, e.duration, e.pitch)),
     ];
   }
 
@@ -197,6 +197,7 @@ export class KeyEstimator {
     this.pending.clear();
     this.current = null;
     this.lastEmitted = null;
+    this.challenger = null;
   }
 
   /** Last computed estimate (null before any in-window evidence). */
@@ -208,6 +209,19 @@ export class KeyEstimator {
   addNote(note: NoteEvent): void {
     const w = noteToWeighted(note);
     if (!w) return;
+    // Soft pitch class: a note sung between semitones (amateur intonation,
+    // ±50¢) splits its weight across both neighbours by its cents, instead
+    // of rounding into whichever side and voting for the wrong key.
+    const mf = Number.isFinite(note.pitch) && note.pitch > 0 ? 69 + 12 * Math.log2(note.pitch / 440) : NaN;
+    if (Number.isFinite(mf) && Math.abs(mf - note.midi) < 1) {
+      const lo = Math.floor(mf);
+      const frac = mf - lo;
+      if (frac > 1e-3 && frac < 1 - 1e-3) {
+        this.notes.push({ ...w, pc: mod12(lo), base: w.base * (1 - frac) }, { ...w, pc: mod12(lo + 1), base: w.base * frac });
+        if (this.notes.length > MAX_ENTRIES) this.notes.splice(0, this.notes.length - MAX_ENTRIES);
+        return;
+      }
+    }
     this.notes.push(w);
     if (this.notes.length > MAX_ENTRIES) {
       this.notes.splice(0, this.notes.length - MAX_ENTRIES);
@@ -239,7 +253,7 @@ export class KeyEstimator {
   tick(nowMs: number, windowMs: number = config.key.windowMs): KeyEstimate | null {
     this.notes = this.notes.filter((n) => nowMs - n.endMs <= windowMs && nowMs >= n.endMs);
     const ranking = estimateKeyFromNotes(this.notes, nowMs, windowMs);
-    this.current = ranking ? this.withHysteresis(ranking) : null;
+    this.current = ranking ? this.withHysteresis(ranking, nowMs) : null;
     if (!this.current) return null;
     const prev = this.lastEmitted;
     const changed =
@@ -255,30 +269,45 @@ export class KeyEstimator {
   }
 
   /**
-   * Keep the current key unless the new top beats it by
-   * `config.key.switchMargin` in correlation: one stray note no longer
-   * flips the key (and the whole band with it).
+   * Keep the current key unless a challenger beats it by
+   * `config.key.switchMargin` in correlation AND stays the winner for
+   * `config.key.switchDwellMs`. While the estimate is still thin
+   * (confidence < `lockConfidence`) it moves freely. Measured on a real
+   * a cappella take (amateur intonation, ±50¢ scatter): without the dwell the
+   * key flipped 52× in 2 min and dragged every chord with it.
    */
-  private withHysteresis(ranking: KeyRanking): KeyEstimate {
+  private challenger: { root: number; mode: string; sinceMs: number } | null = null;
+
+  private withHysteresis(ranking: KeyRanking, nowMs: number): KeyEstimate {
     const cur = this.current;
     const top = ranking.top;
-    if (!cur || (cur.root === top.root && cur.mode === top.mode)) return { ...top };
+    if (!cur || cur.confidence < config.key.lockConfidence || (cur.root === top.root && cur.mode === top.mode)) {
+      this.challenger = null;
+      return { ...top };
+    }
     const held = ranking.ranked.find((k) => k.root === cur.root && k.mode === cur.mode);
     const best = ranking.ranked[0];
+    const keep = held ? { root: held.root, mode: held.mode, confidence: held.confidence } : { ...cur };
     if (held && best.correlation - held.correlation < config.key.switchMargin) {
-      return { root: held.root, mode: held.mode, confidence: held.confidence };
+      this.challenger = null;
+      return keep;
     }
+    if (!this.challenger || this.challenger.root !== top.root || this.challenger.mode !== top.mode) {
+      this.challenger = { root: top.root, mode: top.mode, sinceMs: nowMs };
+    }
+    if (nowMs - this.challenger.sinceMs < config.key.switchDwellMs) return keep;
+    this.challenger = null;
     return { ...top };
   }
 
-  private onNoteEnded(id: string, duration: number): void {
+  private onNoteEnded(id: string, duration: number, pitch?: number): void {
     const p = this.pending.get(id);
     this.pending.delete(id);
     if (!p) return;
     if (!Number.isFinite(duration) || duration <= 0) return;
     this.addNote({
       id,
-      pitch: 440,
+      pitch: typeof pitch === "number" && pitch > 0 ? pitch : 0,
       midi: Math.round(p.midi),
       startTime: p.startTime,
       duration,

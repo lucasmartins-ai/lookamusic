@@ -21,6 +21,8 @@ import type {
 } from "@/domain/types";
 import { createDefaultComposition, validateComposition } from "./schema";
 import { cleanupHummedMelody, type HumCleanupStats } from "./hum-cleanup";
+import { harmonizeTake } from "@/features/conductor/harmony-driver";
+import { estimateKeyFromHistogram } from "@/features/music/theory/key";
 
 /** Folga antes da primeira nota no loop (count-in respirável). */
 export const PLAY_ALONG_LEAD_IN_SEC = 0.5;
@@ -85,32 +87,33 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
   const barSec = (barQuarters(meter) * 60) / tempo;
   const barShift = Math.max(0, Math.floor(shift / barSec));
 
-  let chords: ChordEvent[] = state.chords
-    .filter((c) => Number.isInteger(c.startBar) && c.startBar >= 0)
-    .map((c) => ({
-      id: c.id || newId("chord"),
-      chord: { ...c.chord },
-      startBar: Math.max(0, c.startBar - barShift),
-      durationBars: Math.max(1, c.durationBars || 1),
-      confidence: Math.min(1, Math.max(0, c.confidence ?? 0.8)),
-    }))
-    .sort((a, b) => a.startBar - b.startBar);
-
+  // Hindsight: the whole take is known, so the key comes from every sung
+  // note (duration-weighted) and each bar's chord from the notes sung IN that
+  // bar. The live chords (state.chords) were guessed a bar ahead and lag the
+  // voice — measured on real a cappella takes (TDR-21).
+  const hist = new Array<number>(12).fill(0);
+  // ponytail: hard pitch class — the soft split helped live but cost 2 pts
+  // on the hum-first benchmark (TDR-21); revisit with more takes.
+  for (const n of melody) hist[((n.midi % 12) + 12) % 12] += n.duration;
+  const key = estimateKeyFromHistogram(hist)?.top ?? state.key;
+  const perBar = harmonizeTake(melody, key, barSec);
+  const chords: ChordEvent[] = [];
+  perBar.forEach((chord, bar) => {
+    const last = chords[chords.length - 1];
+    if (last && last.chord.root === chord.root && last.chord.quality === chord.quality) {
+      last.durationBars += 1;
+      return;
+    }
+    chords.push({ id: newId("chord"), chord: { ...chord }, startBar: bar, durationBars: 1, confidence: 0.8 });
+  });
   if (chords.length === 0) {
-    const totalDur = Math.max(...melody.map((n) => n.startTime + n.duration));
-    const totalBars = Math.max(1, Math.ceil(totalDur / barSec));
-    chords = [
-      {
-        id: newId("chord"),
-        chord: {
-          root: (state.key?.root ?? 0) as PitchClass,
-          quality: state.key?.mode === "minor" ? "minor" : "major",
-        },
-        startBar: 0,
-        durationBars: totalBars,
-        confidence: 0.6,
-      },
-    ];
+    chords.push({
+      id: newId("chord"),
+      chord: { root: key.root, quality: key.mode === "minor" ? "minor" : "major" },
+      startBar: 0,
+      durationBars: 1,
+      confidence: 0.6,
+    });
   }
 
   const now = new Date().toISOString();
@@ -121,8 +124,8 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
     updatedAt: now,
     tempo,
     timeSignature: { ...meter },
-    key: { ...state.key },
-    scaleId: state.scale?.id ?? (state.key?.mode === "minor" ? "natural-minor" : "major"),
+    key: { ...key },
+    scaleId: key.mode === "minor" ? "natural-minor" : "major",
     melody,
     chords,
     arrangement: {

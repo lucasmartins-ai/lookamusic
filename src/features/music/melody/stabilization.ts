@@ -314,7 +314,7 @@ export class NoteStabilizer {
     const meanConf = clamp01(open.frames > 0 ? open.confSum / open.frames : 0);
     const meanFreq: Hertz =
       open.frames > 0 ? open.freqSum / open.frames : midiToFreq(open.midi);
-    this.events.emit("NoteEnded", { id: open.id, duration });
+    this.events.emit("NoteEnded", { id: open.id, duration, pitch: meanFreq });
     this.completed.push({
       id: open.id,
       pitch: meanFreq,

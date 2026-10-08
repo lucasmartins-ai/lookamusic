@@ -75,7 +75,7 @@ export class ConductorState {
         if (m) { m.midi = u.midi; m.confidence = u.confidence; }
         stamp("NoteChanged")();
       }),
-      events.on("NoteEnded", (e) => { this.onNoteEnded(e.id, e.duration); stamp("NoteEnded")(); }),
+      events.on("NoteEnded", (e) => { this.onNoteEnded(e.id, e.duration, e.pitch); stamp("NoteEnded")(); }),
       events.on("TempoUpdated", (t) => { this.tempo = { ...t }; stamp("TempoUpdated")(); }),
       events.on("MeterChanged", (m) => { this.meter = { ...m }; stamp("MeterChanged")(); }),
       events.on("KeyUpdated", (k) => { this.key = { ...k }; stamp("KeyUpdated")(); }),
@@ -153,14 +153,19 @@ export class ConductorState {
     if (this.melody.length > cap) this.melody.splice(0, this.melody.length - cap);
   }
 
-  private onNoteEnded(id: string, duration: number): void {
+  private onNoteEnded(id: string, duration: number, pitch?: number): void {
+    const hz = typeof pitch === "number" && Number.isFinite(pitch) && pitch > 0 ? pitch : undefined;
     const o = this.open.get(id);
     if (o) {
       o.duration = duration;
+      if (hz) o.pitch = hz;
       this.open.delete(id);
     }
     const m = this.melody.find((x) => x.id === id);
-    if (m) m.duration = duration;
+    if (m) {
+      m.duration = duration;
+      if (hz) m.pitch = hz;
+    }
   }
 
   private onChord(c: ChordEvent): void {

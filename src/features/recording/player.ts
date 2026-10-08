@@ -11,7 +11,9 @@ import {
   type InstrumentId,
   type PitchClass,
 } from "@/domain/types";
-import { WebAudioSink, createMasterBus } from "@/features/instruments/audio-sink";
+import { createMasterBus, type VoiceSink } from "@/features/instruments/audio-sink";
+import { createInstrumentSink } from "@/features/instruments/sample-voice";
+import { getSampleCache } from "@/features/instruments/sample-store";
 import { createBand } from "@/features/instruments/registry";
 import { barQuarters, METER_44 } from "@/features/music/rhythm/meter";
 import {
@@ -46,7 +48,7 @@ export class CompositionPlayer {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private band: Record<InstrumentId, InstrumentEngine> | null = null;
-  private melodySink: WebAudioSink | null = null;
+  private melodySink: VoiceSink | null = null;
   private isPlaying = false;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private progressInterval: ReturnType<typeof setInterval> | null = null;
@@ -62,9 +64,13 @@ export class CompositionPlayer {
       this.master = createMasterBus(this.ctx, this.ctx.destination).input;
       const liveCtx = this.ctx;
       const liveMaster = this.master;
-      this.band = createBand(() => new WebAudioSink(liveCtx, liveMaster));
-      this.melodySink = new WebAudioSink(liveCtx, liveMaster);
-      this.melodySink.setVolume(0.95);
+      // Same real-sound path as the live band (samples first, native model
+      // as automatic fallback). Before, the hum-first loop was 100% synth.
+      const cache = getSampleCache();
+      this.band = createBand((id) => createInstrumentSink(liveCtx, liveMaster, id, cache));
+      // Guide melody on the real piano, under the singer (was a sawtooth lead).
+      this.melodySink = createInstrumentSink(liveCtx, liveMaster, "piano", cache);
+      this.melodySink.setVolume(config.recording.guideMelodyVolume);
     }
     if (this.ctx.state === "suspended") {
       void this.ctx.resume();
@@ -131,7 +137,7 @@ export class CompositionPlayer {
         at,
         dur: Math.max(0.08, note.duration),
         velocity: note.velocity ?? 0.8,
-        type: "sawtooth",
+        type: "triangle", // fallback only — samples play when decoded
         attack: 0.02,
         release: 0.08,
         cutoff: 2800,
@@ -168,6 +174,10 @@ export class CompositionPlayer {
       for (const id of INSTRUMENTS) {
         const ch = comp.instruments[id];
         if (ch && ch.muted) continue;
+        // Only the song's lineup plays. Before, every instrument without an
+        // explicit mute played — the hum-first loop came out as 8 voices
+        // (accordion, sax, strings on synth) instead of the core trio.
+        if (comp.arrangement?.active && comp.arrangement.active[id] !== true) continue;
         const engine = this.band[id];
         if (!engine) continue;
 

@@ -58,4 +58,17 @@ describe("buildPlayAlongComposition", () => {
     expect(comp!.chords[0].startBar).toBeGreaterThanOrEqual(0);
     expect(isComposition(comp)).toBe(true);
   });
+
+  it("harmoniza pela melodia cantada no próprio compasso (C–E–G → C, G–B–D → G)", () => {
+    const st = baseState();
+    // 90 BPM 4/4 → 2.667 s/bar; first note lands at 0.5 s in the song.
+    const n = (id: string, midi: number, t: number) => ({
+      id, pitch: 440 * 2 ** ((midi - 69) / 12), midi, startTime: t, duration: 0.6, velocity: 0.8, confidence: 0.9, source: "voice" as const,
+    });
+    st.melody = [n("a", 60, 10.0), n("b", 64, 10.7), n("c", 67, 11.4), n("d", 71, 13.0), n("e", 74, 13.7), n("f", 67, 14.4)];
+    const comp = buildPlayAlongComposition(st)!;
+    const at = (bar: number) => comp.chords.find((c) => bar >= c.startBar && bar < c.startBar + c.durationBars)!.chord;
+    expect(at(0)).toMatchObject({ root: 0, quality: "major" });
+    expect(at(1).root).toBe(7);
+  });
 });

@@ -4,6 +4,33 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.3.5 — Teste real com voz a capela: som real no Cantarolar Primeiro e harmonia pela voz real] — OK
+
+Pedido do usuário: "ainda não tá funcionando… baixa uma música a capela e faz
+o teste real". Gate: **689/689 testes** (1 benchmark opcional pulado),
+typecheck 0 erros, build verde, **E2E 12/12** (+1 opcional a capela). Ver
+**TDR-21**.
+
+- **Teste real**: duas gravações livres do Wikimedia Commons (Twinkle, CC0;
+  Singin' in the Rain, CC BY 4.0) pelo caminho do microfone
+  (`tests/bench/acapella.test.ts`, opt-in `ACAPELLA_WAV`) e pelo app no
+  Chromium com microfone falso (`e2e/acapella-real.spec.ts`, opt-in).
+- **Cantarolar Primeiro tocava 100% sintetizado** (player com `WebAudioSink`
+  puro + melodia em dente de serra): agora samples reais; guia no piano real em
+  volume baixo. App real: osciladores no loop **2.253 → 0**.
+- **O loop tocava 8 instrumentos** (acordeão/sax/cordas sintetizados): agora só
+  o lineup ativo (trio por padrão).
+- **Harmonia pela altura real** (centésimos via `NoteEnded.pitch`): acorde
+  escolhido pelo encaixe com a voz (atrito de meio-tom penaliza), bônus de
+  manter e de acordes principais; tom com contagem proporcional e
+  permanência de 4 s (trocas de tom no Twinkle **62 → 8**).
+- **Ao vivo**: acorde re-decidido a cada meio compasso, evidência = voz recente.
+- **Cantarolar Primeiro**: acordes retrospectivos, compasso a compasso pela
+  melodia cantada nele.
+- Choque de meio-tom voz × banda (menor = melhor), antes → depois: Twinkle ao
+  vivo 19,6% → **13,2%** (oráculo ~10%), Singin' ao vivo 19,7% → 18,9%,
+  Twinkle Cantarolar Primeiro 22,4% → **15,9%**, Singin' 28,9% → **21,8%**.
+
 ## [v1.3.4 — Banda que segura a harmonia e segue a voz] — OK
 
 Pedido do usuário: "ele se perde e toca algo bizarro", "fica mudando de nota

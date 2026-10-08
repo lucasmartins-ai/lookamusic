@@ -17,7 +17,8 @@ export interface DomainEvents {
   PitchDetected: PitchObservation;
   NoteStarted: NoteEvent;
   NoteChanged: { id: string; midi: number; confidence: Confidence };
-  NoteEnded: { id: string; duration: number };
+  /** `pitch` = mean sounding Hz over the note (unrounded; optional). */
+  NoteEnded: { id: string; duration: number; pitch?: number };
   TempoUpdated: TempoState;
   MeterChanged: TimeSignature;
   KeyUpdated: KeyEstimate;
