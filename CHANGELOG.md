@@ -4,6 +4,27 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.4.1 — Cantarolar Primeiro no pulso, loop sem tropeço e bateria equilibrada] — OK
+
+Relato: "Polegar, onde está?" — "não tá no ritmo", "troca de nota sem parar",
+"bateria muito forte", "MS em 3000". Reproduzido com gravações reais da mesma
+melodia (Frei Martinho / Irmão Jorge, CC BY-SA 4.0). Ver **TDR-23**.
+
+- **Pulso da tomada inteira**: andamento e tempo forte detectados olhando a
+  gravação completa + 1 compasso de contagem. Erro nota × tempo da banda
+  **162 → 32 ms** (antes estava no nível do acaso). Antes o loop usava 108 BPM
+  para um cantor a ~118 e começava 0,5 s adiantado.
+- **Sem melodia-guia** no Cantarolar Primeiro (você é a melodia): o piano não
+  repete mais as notas captadas por cima da voz.
+- **Loop emendado** no relógio de áudio: sem parar e recomeçar a cada volta
+  (cortava pratos e atrasava 40–120 ms).
+- **Mix**: bateria −8 dB, violão −7 dB → bateria −25,9 / piano −24,6 /
+  violão −24,1 LUFS, abaixo da voz.
+- "Latência 3000 ms" virou **"Reação da banda"**, só no modo ao vivo (era o
+  tempo até o próximo compasso, não atraso de som).
+- Gate: **699/699** unitários (+2 benchmarks opcionais), typecheck 0, build verde,
+  **E2E 12/12**.
+
 ## [v1.4.0 — Notas medidas contra anotação humana e só instrumentos gravados] — OK
 
 Pedido do usuário: "a precisão está em 25%", "parece som fake, sintetizado",

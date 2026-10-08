@@ -141,13 +141,12 @@ function SessionBody() {
 
   const loopPlay = (comp: Composition) => {
     const player = ensurePlayer();
+    // Seamless audio-clock loop, band only (the singer is the melody).
     player.play(
       comp,
       (sec) => setPlayhead(sec),
-      () => {
-        if (keepLoop.current) loopPlay(comp);
-        else setPlayhead(0);
-      },
+      () => setPlayhead(0),
+      { melody: false, loop: true },
     );
   };
 
@@ -368,8 +367,10 @@ function SessionBody() {
         locked={cond.stableLocked}
         steadyMs={cond.stableSteadyMs}
         sampleLabel={sampleLabel}
-        latencyMs={cond.perceivedMs}
-        p95Ms={cond.latencyP95}
+        // Voice → next band dispatch only means something while the band reacts
+        // live; during hum capture the band is muted and the loop is fixed.
+        latencyMs={reactivePure ? cond.perceivedMs : Number.NaN}
+        p95Ms={reactivePure ? cond.latencyP95 : Number.NaN}
       />
 
       {feedbackMsg && (

@@ -167,6 +167,22 @@ export const config = {
     densityDenseAbove: 0.65,
     /** Phase 5+: pattern hits below this velocity are ghosts (droppable). */
     ghostCutVelocity: 0.45,
+    /**
+     * TDR-23: beat tracking da tomada inteira (Cantarolar Primeiro).
+     * Grade testada: [offlineMinBpm, offlineMaxBpm] em passos de
+     * offlineBpmStep × fases a cada offlinePhaseStepSec; tolerância gaussiana
+     * offlineSigmaSec; prior log-normal em torno de offlinePriorBpm (largura
+     * em oitavas) evita o dobro/metade; outro tempo vira o forte só se pesar
+     * offlineDownbeatMargin× mais que o da 1ª nota.
+     */
+    offlineMinBpm: 60,
+    offlineMaxBpm: 180,
+    offlineBpmStep: 0.25,
+    offlinePhaseStepSec: 0.01,
+    offlineSigmaSec: 0.05,
+    offlinePriorBpm: 105,
+    offlinePriorOctaves: 0.5,
+    offlineDownbeatMargin: 1.25,
     /** Phase 5+: velocity floor so quiet singing stays audible. */
     energyVelocityFloor: 0.6,
   },
@@ -506,6 +522,10 @@ export const config = {
      * Cantarolar Primeiro — baixo, a voz do usuário é a melodia.
      */
     guideMelodyVolume: 0.45,
+    /** TDR-23: próxima volta do loop é agendada este tanto (s) antes de acabar. */
+    loopScheduleAheadSec: 0.5,
+    /** TDR-23: notas abaixo disto (s) não contam como início de tempo (fragmentos). */
+    beatMinNoteSec: 0.06,
     /** Phase 11+: IndexedDB database name. */
     dbName: "lookamusic",
     /** Phase 11+: IndexedDB database version. */

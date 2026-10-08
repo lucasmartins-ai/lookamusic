@@ -58,8 +58,12 @@ export function SessionStatusStrip({
       <span data-testid="status-source">
         <strong>Som</strong> {sampleLabel}
       </span>
-      <span data-testid="status-latency">
-        <strong>Latência</strong> {latencyMs.toFixed(0)} ms (p95 {p95Ms.toFixed(1)} ms)
+      <span
+        data-testid="status-latency"
+        title="Tempo da sua voz até a banda agendar a próxima resposta (até um compasso). Não é atraso do som: a banda toca contínua. Só vale no modo ao vivo."
+      >
+        <strong>Reação da banda</strong>{" "}
+        {Number.isFinite(latencyMs) ? `${latencyMs.toFixed(0)} ms (p95 ${p95Ms.toFixed(0)} ms)` : "—"}
       </span>
     </div>
   );

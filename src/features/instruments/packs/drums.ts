@@ -30,4 +30,7 @@ export const DRUMS_PACK: DrumPackManifest = {
   })),
   // 66 one-shots mono 128 kbps (0,6–3,5 s) ≈ 1,6 MB no instalador.
   totalBytesEstimate: 1_600_000,
+  // TDR-23 mix: measured −18 LUFS for the kit vs −24.6 piano on a real take
+  // ("bateria muito forte") → −8 dB, sits ~2 dB under piano/violão.
+  gain: 0.4,
 };

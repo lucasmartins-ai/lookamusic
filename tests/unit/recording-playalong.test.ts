@@ -29,7 +29,7 @@ describe("buildPlayAlongComposition", () => {
     expect(buildPlayAlongComposition(baseState())).toBeNull();
   });
 
-  it("rebaseia a cantarolada p/ 0.5s, ordena e valida schema", () => {
+  it("rebaseia a cantarolada: 1 compasso de contagem antes da 1ª nota, ordena e valida schema", () => {
     const st = baseState();
     st.melody = [
       { id: "n2", pitch: 392, midi: 67, startTime: 101.0, duration: 0.4, velocity: 0.8, confidence: 0.9, source: "voice" },
@@ -40,7 +40,10 @@ describe("buildPlayAlongComposition", () => {
     expect(comp).not.toBeNull();
     expect(isComposition(comp)).toBe(true);
     expect(comp!.melody.map((n) => n.id)).toEqual(["n1", "n2", "n3"]);
-    expect(comp!.melody[0].startTime).toBeCloseTo(0.5, 3);
+    // TDR-23: pulse from the take; the first sung note lands on beat 1 of
+    // bar 2 (bar 1 = count-in).
+    const barSec = (4 * 60) / comp!.tempo;
+    expect(comp!.melody[0].startTime).toBeCloseTo(barSec, 1);
     expect(comp!.melody[2].duration).toBeCloseTo(0.25, 3); // aberta → mínima
     expect(comp!.chords.length).toBeGreaterThan(0); // fallback do tom
   });
@@ -59,16 +62,20 @@ describe("buildPlayAlongComposition", () => {
     expect(isComposition(comp)).toBe(true);
   });
 
-  it("harmoniza pela melodia cantada no próprio compasso (C–E–G → C, G–B–D → G)", () => {
+  it("harmoniza pela melodia cantada no próprio compasso (C–E–G–C → C, G–B–D–G → G)", () => {
     const st = baseState();
-    // 90 BPM 4/4 → 2.667 s/bar; first note lands at 0.5 s in the song.
+    // Steady quarter notes at 120 BPM (0.5 s): one bar of each arpeggio.
     const n = (id: string, midi: number, t: number) => ({
-      id, pitch: 440 * 2 ** ((midi - 69) / 12), midi, startTime: t, duration: 0.6, velocity: 0.8, confidence: 0.9, source: "voice" as const,
+      id, pitch: 440 * 2 ** ((midi - 69) / 12), midi, startTime: t, duration: 0.45, velocity: 0.8, confidence: 0.9, source: "voice" as const,
     });
-    st.melody = [n("a", 60, 10.0), n("b", 64, 10.7), n("c", 67, 11.4), n("d", 71, 13.0), n("e", 74, 13.7), n("f", 67, 14.4)];
+    const line = [60, 64, 67, 60, 67, 71, 74, 67];
+    st.melody = line.map((m, k) => n(`n${k}`, m, 10 + k * 0.5));
     const comp = buildPlayAlongComposition(st)!;
+    expect(comp.tempo).toBeGreaterThan(115);
+    expect(comp.tempo).toBeLessThan(125);
     const at = (bar: number) => comp.chords.find((c) => bar >= c.startBar && bar < c.startBar + c.durationBars)!.chord;
-    expect(at(0)).toMatchObject({ root: 0, quality: "major" });
-    expect(at(1).root).toBe(7);
+    expect(at(1)).toMatchObject({ root: 0, quality: "major" });
+    expect(at(2).root).toBe(7);
+    expect(at(0)).toMatchObject(at(1)); // count-in takes the first sung bar's chord
   });
 });

@@ -101,36 +101,81 @@ export class CompositionPlayer {
 
   /**
    * Play the full composition (melody + band accompaniment).
+   * `opts.melody=false` (hum-first loop): band only — the singer IS the
+   * melody, and replaying the captured notes over the live voice doubled every
+   * detection slip as "notas sem relação" (TDR-23).
    */
   play(
     comp: Composition,
     onProgress: (currentSec: number) => void,
     onEnded: () => void,
+    opts: { melody?: boolean; loop?: boolean } = {},
   ): boolean {
     if (!this.ensureAudio() || !this.ctx || !this.band || !this.melodySink) return false;
     this.stop();
 
     const ctx = this.ctx;
+    const t0 = ctx.currentTime + 0.08;
+    this.playStartAudioTime = t0;
+    this.isPlaying = true;
+    this.playDurationSec = this.scheduleOnce(comp, t0, opts.melody !== false);
+
+    // Loop (hum-first): the next pass is scheduled on the AUDIO clock exactly
+    // where this one ends, ahead of time — no stop(), no gap. Before, a 40 ms
+    // timer stopped everything (cutting cymbal tails) and restarted
+    // ~40–120 ms late on every lap: a rhythm stumble each loop (TDR-23).
+    let nextStart = t0 + this.playDurationSec;
+    this.progressInterval = setInterval(() => {
+      if (!this.isPlaying) return;
+      const elapsed = Math.max(0, ctx.currentTime - this.playStartAudioTime);
+      if (opts.loop) {
+        if (ctx.currentTime >= nextStart - config.recording.loopScheduleAheadSec) {
+          this.scheduleOnce(comp, nextStart, opts.melody !== false);
+          nextStart += this.playDurationSec;
+        }
+        onProgress(elapsed % this.playDurationSec);
+        return;
+      }
+      onProgress(elapsed);
+      if (elapsed >= this.playDurationSec) {
+        this.stop();
+        onEnded();
+      }
+    }, 40);
+
+    if (!opts.loop) {
+      // Stop timer safety guard
+      this.stopTimer = setTimeout(() => {
+        if (this.isPlaying) {
+          this.stop();
+          onEnded();
+        }
+      }, (this.playDurationSec + 0.6) * 1000);
+    }
+
+    return true;
+  }
+
+  /** Schedule one pass of the song at audio time `t0`; returns its length (s). */
+  private scheduleOnce(comp: Composition, t0: number, withMelody: boolean): number {
+    if (!this.band || !this.melodySink) return 0;
     const bpm = comp.tempo > 0 ? comp.tempo : config.rhythm.defaultBpm;
     const meter = comp.timeSignature ?? METER_44;
     const barQ = barQuarters(meter);
     const barSec = (barQ * 60) / bpm;
 
-    // Calculate total duration
     let maxTime = 4.0;
     for (const note of comp.melody) {
       const end = note.startTime + note.duration;
       if (end > maxTime) maxTime = end;
     }
-    const totalBars = Math.max(comp.chords.length, Math.ceil(maxTime / barSec));
-    this.playDurationSec = Math.max(maxTime, totalBars * barSec);
-
-    const t0 = ctx.currentTime + 0.08;
-    this.playStartAudioTime = t0;
-    this.isPlaying = true;
+    const lastChordBar = comp.chords.reduce((m, c) => Math.max(m, c.startBar + c.durationBars), 0);
+    // Whole bars only: the loop seam lands on a downbeat.
+    const totalBars = Math.max(lastChordBar, Math.ceil(maxTime / barSec));
+    const durationSec = totalBars * barSec;
 
     // 1. Schedule Melody
-    for (const note of comp.melody) {
+    for (const note of withMelody ? comp.melody : []) {
       const at = t0 + note.startTime;
       this.melodySink.tone({
         freq: midiToFreq(note.midi),
@@ -195,26 +240,7 @@ export class CompositionPlayer {
       }
     }
 
-    // 3. Track visual progress
-    this.progressInterval = setInterval(() => {
-      if (!this.isPlaying) return;
-      const elapsed = Math.max(0, ctx.currentTime - this.playStartAudioTime);
-      onProgress(elapsed);
-      if (elapsed >= this.playDurationSec) {
-        this.stop();
-        onEnded();
-      }
-    }, 40);
-
-    // Stop timer safety guard
-    this.stopTimer = setTimeout(() => {
-      if (this.isPlaying) {
-        this.stop();
-        onEnded();
-      }
-    }, (this.playDurationSec + 0.6) * 1000);
-
-    return true;
+    return durationSec;
   }
 
   stop(): void {

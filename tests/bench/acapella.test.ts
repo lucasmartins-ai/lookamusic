@@ -227,7 +227,25 @@ describe.skipIf(!WAV)("a cappella benchmark", () => {
       for (const m of comp.melody) humPlayed.push({ instrument: "piano", at: shift + m.startTime, midi: m.midi, dur: m.duration, vel: 0.45 });
       humProgression = comp.chords.map((x) => `${chordName(x.chord)}x${x.durationBars}`).join(" ");
     }
+    // Rhythm: |sung onset − nearest band beat| for the hum-first grid, vs the
+    // pre-TDR-23 grid (live playback tempo, first note at 0.5 s).
+    const beatErr = (bpm: number, origin: number) => {
+      const p = 60 / bpm;
+      const errs = notes.map((n) => {
+        const x = (n.startTime - origin) / p;
+        return Math.abs(x - Math.round(x)) * p * 1000;
+      }).sort((a, b) => a - b);
+      return { medianMs: Math.round(errs[Math.floor(errs.length / 2)] ?? 0), within70: +((errs.filter((e) => e <= 70).length / Math.max(errs.length, 1)) * 100).toFixed(0) };
+    };
+    const firstNote = Math.min(...notes.map((n) => n.startTime));
+    const oldBpm = Math.round(c.state.snapshot().tempo.playback);
+    const humBeat = comp ? beatErr(comp.tempo, humShift) : null;
+    const oldBeat = beatErr(oldBpm, firstNote - 0.5);
     const report = {
+      humTempo: comp?.tempo,
+      humBeat,
+      oldTempo: oldBpm,
+      oldBeat,
       humRubPct,
       humProgression,
       semitoneRubPct: +((rub / Math.max(framesWithBand, 1)) * 100).toFixed(1),

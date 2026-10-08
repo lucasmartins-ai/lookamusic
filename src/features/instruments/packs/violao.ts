@@ -57,4 +57,6 @@ export const VIOLAO_PACK: PitchedPackManifest = {
   notes: buildNotes(),
   // 48 mp3 mono empacotados (~48 KB cada, 4 s) ≈ 2,3 MB no instalador.
   totalBytesEstimate: 2_350_000,
+  // TDR-23 mix: busy eighth-note picking read −17.2 LUFS (loudest stem) → −7 dB.
+  gain: 0.45,
 };

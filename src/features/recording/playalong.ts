@@ -12,6 +12,7 @@ import { config } from "@/lib/config";
 import { newId } from "@/lib/ids";
 import { midiToFreq } from "@/features/pitch/conversions";
 import { barQuarters } from "@/features/music/rhythm/meter";
+import { trackBeatOffline } from "@/features/music/rhythm/tempo";
 import type {
   ChordEvent,
   Composition,
@@ -49,7 +50,8 @@ export function lastPlayAlongNotes(): PlayAlongNotes | null {
 
 function clampTempo(bpm: number): number {
   if (!Number.isFinite(bpm)) return config.rhythm.defaultBpm;
-  return Math.min(config.recording.maxBpm, Math.max(config.recording.minBpm, Math.round(bpm)));
+  // 0.25 BPM resolution: rounding 117.6 → 118 drifts 0.3 s over a 2-min loop.
+  return Math.min(config.recording.maxBpm, Math.max(config.recording.minBpm, Math.round(bpm * 4) / 4));
 }
 
 export function buildPlayAlongComposition(state: MusicalState, name = "Cantarolada"): Composition | null {
@@ -64,8 +66,23 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
   };
   if (notes.length === 0) return null;
 
+  const meter = state.timeSignature ?? { numerator: 4, denominator: 4 };
+  // Pulse of the WHOLE take (TDR-23): tempo + downbeat from where the notes
+  // actually fall, then one count-in bar so the band's beat 1 is the
+  // singer's beat 1. Fallback (too few notes): live tempo + 0.5 s lead-in.
+  // Onsets from the RAW take (cleanup folds repeated same-pitch notes, which
+  // erases real re-attacks the pulse needs); only sub-blip fragments skipped.
+  const onsets = state.melody
+    .filter((n) => Number.isFinite(n.startTime) && (n.duration <= 0 || n.duration >= config.recording.beatMinNoteSec))
+    .map((n) => ({ t: n.startTime, w: Math.min(1, 0.4 + Math.max(0, n.duration)) }));
+  const beat = trackBeatOffline(
+    onsets,
+    Math.max(1, Math.round(barQuarters(meter))),
+  );
+  const tempo = beat ? clampTempo(beat.bpm) : clampTempo(state.tempo?.playback || config.rhythm.defaultBpm);
+  const barSec = (barQuarters(meter) * 60) / tempo;
   const minStart = notes[0].startTime;
-  const shift = minStart - PLAY_ALONG_LEAD_IN_SEC;
+  const shift = beat ? beat.firstDownbeat - barSec : minStart - PLAY_ALONG_LEAD_IN_SEC;
   const melody: NoteEvent[] = notes.map((n) => {
     const midi = Math.round(n.midi);
     const duration =
@@ -82,10 +99,6 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
     };
   });
 
-  const tempo = clampTempo(state.tempo?.playback || config.rhythm.defaultBpm);
-  const meter = state.timeSignature ?? { numerator: 4, denominator: 4 };
-  const barSec = (barQuarters(meter) * 60) / tempo;
-  const barShift = Math.max(0, Math.floor(shift / barSec));
 
   // Hindsight: the whole take is known, so the key comes from every sung
   // note (duration-weighted) and each bar's chord from the notes sung IN that
@@ -97,6 +110,9 @@ export function buildPlayAlongComposition(state: MusicalState, name = "Cantarola
   for (const n of melody) hist[((n.midi % 12) + 12) % 12] += n.duration;
   const key = estimateKeyFromHistogram(hist)?.top ?? state.key;
   const perBar = harmonizeTake(melody, key, barSec);
+  // Count-in bar(s) have no voice: they take the first sung bar's chord.
+  const firstSung = Math.floor(Math.min(...melody.map((n) => n.startTime)) / barSec);
+  for (let b = 0; b < firstSung && b < perBar.length; b++) perBar[b] = perBar[Math.min(firstSung, perBar.length - 1)];
   const chords: ChordEvent[] = [];
   perBar.forEach((chord, bar) => {
     const last = chords[chords.length - 1];

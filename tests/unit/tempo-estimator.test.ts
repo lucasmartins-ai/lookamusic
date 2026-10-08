@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { EventBus } from "@/lib/events";
 import { config } from "@/lib/config";
 import type { TempoState } from "@/domain/types";
-import { TempoEstimator } from "@/features/music/rhythm/tempo";
+import { TempoEstimator, trackBeatOffline } from "@/features/music/rhythm/tempo";
 
 const SLEW = config.rhythm.tempoSlewPerSec; // 8 BPM/s
 
@@ -130,5 +130,27 @@ describe("TempoUpdated emissions", () => {
     const settled = h.updates.length;
     advance(h, 5100, 8000, 100); // …then silence: no more emissions
     expect(h.updates.length).toBe(settled);
+  });
+});
+
+describe("trackBeatOffline (hum-first pulse, TDR-23)", () => {
+  it("finds 118 BPM and the first-note downbeat from a jittery quarter-note take", () => {
+    const onsets: { t: number; w: number }[] = [];
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31 - 0.5) * 0.04; // ±20 ms
+    for (let k = 0; k < 28; k++) onsets.push({ t: 3.2 + k * (60 / 118) + rnd(), w: 0.9 });
+    const b = trackBeatOffline(onsets, 4)!;
+    expect(Math.abs(b.bpm - 118)).toBeLessThan(2);
+    expect(Math.abs(b.firstDownbeat - 3.2)).toBeLessThan(0.05);
+  });
+
+  it("prefers the natural tempo over its double/half", () => {
+    const onsets = Array.from({ length: 16 }, (_, k) => ({ t: k * 0.6, w: 1 })); // 100 BPM
+    const b = trackBeatOffline(onsets, 4)!;
+    expect(Math.abs(b.bpm - 100)).toBeLessThan(2);
+  });
+
+  it("needs at least 3 onsets", () => {
+    expect(trackBeatOffline([{ t: 0, w: 1 }, { t: 1, w: 1 }], 4)).toBeNull();
   });
 });
