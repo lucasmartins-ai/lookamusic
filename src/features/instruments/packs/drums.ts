@@ -12,7 +12,27 @@
 import type { DrumPackManifest } from "./types";
 
 const BASE_URL = "/samples/drums";
-const VOICES = ["kick", "snare", "hihat", "ride", "crash", "tom", "rim", "clap", "shaker", "cajon", "cajon-slap"] as const;
+/**
+ * Kit balance (TDR-24). Every piece ships normalized to the same peak, which
+ * made sustained cymbals as loud as the kick ("só bate o prato"). Measured on a
+ * real take (K-weighted LUFS per piece): kick −27.7, snare −31.1, hats −41.1,
+ * crash (section starts only) −34.9 — kick/snare in front, hats ~10 dB back.
+ * The snare's short transient needs > 1 to sit with the kick.
+ */
+const KIT_BALANCE: Record<string, number> = {
+  kick: 1,
+  snare: 2,
+  tom: 1.2,
+  rim: 1,
+  clap: 1,
+  cajon: 1,
+  "cajon-slap": 1.2,
+  hihat: 1.4,
+  shaker: 1,
+  ride: 0.5,
+  crash: 0.3,
+};
+const VOICES = Object.keys(KIT_BALANCE);
 
 export const DRUMS_PACK: DrumPackManifest = {
   kind: "drums",
@@ -27,10 +47,11 @@ export const DRUMS_PACK: DrumPackManifest = {
   voices: VOICES.map((voice) => ({
     voice,
     layers: [1, 2, 3].map((l) => [1, 2].map((r) => `${BASE_URL}/${voice}_l${l}_r${r}.mp3`)),
+    gain: KIT_BALANCE[voice],
   })),
   // 66 one-shots mono 128 kbps (0,6–3,5 s) ≈ 1,6 MB no instalador.
   totalBytesEstimate: 1_600_000,
-  // TDR-23 mix: measured −18 LUFS for the kit vs −24.6 piano on a real take
-  // ("bateria muito forte") → −8 dB, sits ~2 dB under piano/violão.
-  gain: 0.4,
+  // TDR-23/24 mix: whole kit ≈ −26 LUFS vs piano −24.4 / violão −24.1 on a
+  // real take (was −18, "bateria muito forte"), with KIT_BALANCE inside.
+  gain: 0.7,
 };

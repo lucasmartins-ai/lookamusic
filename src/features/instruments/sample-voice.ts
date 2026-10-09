@@ -201,7 +201,10 @@ export class SampleVoice implements VoiceSink {
       this.playBuffer(buf, {
         at: p.at,
         dur,
-        velocity: layeredGain(p.velocity, true) * (this.opts.drumPack.gain ?? 1),
+        velocity:
+          layeredGain(p.velocity, true) *
+          (this.opts.drumPack.gain ?? 1) *
+          (this.opts.drumPack.voices.find((v) => v.voice === voice)?.gain ?? 1),
         attack: 0.001,
         release: 0.03,
         rate: 1,

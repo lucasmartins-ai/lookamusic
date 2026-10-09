@@ -45,6 +45,11 @@ export interface DrumPackVoice {
    * alternate on repeated hits (no "machine-gun" identical strikes).
    */
   layers: string[][];
+  /**
+   * Linear kit-balance trim for this piece (default 1). The bundle normalizes
+   * every piece to the same peak, so the mix balance lives here (TDR-24).
+   */
+  gain?: number;
 }
 
 export interface DrumPackManifest {

@@ -4,6 +4,20 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.4.2 — Bateria com groove de verdade] — OK
+
+Relato: "a bateria parece sem nexo, só bate o prato, destoa do resto" (ritmo e
+harmonia aprovados). Ver **TDR-24**.
+
+- Prato de ataque (crash) só no início de cada seção de 8 compassos — antes
+  batia em **todo** compasso e era a peça mais alta do kit (−26,8 LUFS, acima
+  do bumbo).
+- Contratempo (2 e 4) na **caixa** em vez do aro (clique fino no kit gravado).
+- Equilíbrio do kit como num mix de baterista: bumbo −27,7 / caixa −31,1 /
+  chimbal −41,1 LUFS; kit ~2 dB abaixo de piano e violão.
+- Gate: **702/702** unitários (+2 benchmarks opcionais), typecheck 0, build
+  verde, E2E 12/12.
+
 ## [v1.4.1 — Cantarolar Primeiro no pulso, loop sem tropeço e bateria equilibrada] — OK
 
 Relato: "Polegar, onde está?" — "não tá no ritmo", "troca de nota sem parar",

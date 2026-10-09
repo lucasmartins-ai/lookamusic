@@ -542,6 +542,7 @@ export class Conductor {
       energy01: this.engines.dynamics.snapshot().energy01,
       density: this.engines.tempo.onsetDensity(),
       style: styleDrums(this.styleId),
+      barIndex: bar,
     };
     const remaining = planDrums(input, 1)
       .filter((h) => h.note.startTime >= note.startTime - 1e-6)
@@ -707,6 +708,7 @@ export class Conductor {
       energy01: energy,
       density: this.engines.tempo.onsetDensity(),
       style: styleDrums(this.styleId),
+      barIndex: bar,
     };
   }
 

@@ -323,6 +323,7 @@ export async function renderToWav(
       energy01: comp.arrangement.energy,
       density: 0.5,
       style: styleDrums(comp.styleId),
+      barIndex: b,
     };
 
     for (const inst of Object.keys(band) as InstrumentId[]) {

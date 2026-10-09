@@ -39,6 +39,11 @@ export interface PassageInput {
   density: number;
   /** Drums only. */
   style?: DrumStyleId;
+  /**
+   * Absolute index of bar 0 of this passage in the song. Drums use it to
+   * place the crash only on section starts (TDR-24). Omitted → treated as 0.
+   */
+  barIndex?: number;
 }
 
 /** Quarter-note beats in one bar of `meter` (6/8 counts 3 quarters). */
@@ -134,7 +139,12 @@ export function planDrums(input: PassageInput, bars: number): MusicalEvent[] {
     );
     const start = barStartSec(input, bar);
     const spq = secPerQuarter(input.bpm);
+    // A real crash rings ~3 s: on every downbeat it washed over the whole
+    // band ("só bate o prato"). Only the first bar of each section crashes.
+    const absBar = (input.barIndex ?? 0) + bar;
+    const sectionStart = absBar % config.instruments.crashEveryBars === 0;
     for (const h of hits) {
+      if (h.voice === "crash" && !sectionStart) continue;
       const midi = gm[h.voice] as number;
       out.push(
         note("drums", bar, h.timeQuarters, midi, start + h.timeQuarters * spq, 0.05, h.velocity),

@@ -213,7 +213,7 @@ describe.skipIf(!WAV)("a cappella benchmark", () => {
       for (let bar = 0; bar < totalBars; bar++) {
         const input: planning.PassageInput = {
           chords: [chordAtBar(bar)], melody: [], phraseStarts: [0], meter: comp.timeSignature, bpm: comp.tempo,
-          originSec: 0, energy01: 0.6, density: 0.5, style: styleDrums("neutral"),
+          originSec: 0, energy01: 0.6, density: 0.5, style: styleDrums("neutral"), barIndex: bar,
         };
         for (const id of INSTRUMENTS) {
           const ch = comp.instruments[id];

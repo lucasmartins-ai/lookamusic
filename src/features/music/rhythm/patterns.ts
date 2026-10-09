@@ -66,7 +66,7 @@ export interface DrumStyleMeta {
 }
 
 export const DRUM_STYLES: readonly DrumStyleMeta[] = [
-  { id: "acoustic-pop", label: "Acústico Pop", blurb: "Cajon-like kick, rim backbeat, bright hats." },
+  { id: "acoustic-pop", label: "Acústico Pop", blurb: "Soft kick, snare backbeat, bright hats." },
   { id: "rock", label: "Rock", blurb: "Kick/snare backbeat, driving eighths." },
   { id: "ballad", label: "Balada", blurb: "Soft kick, rim clicks, ride wash." },
   { id: "folk", label: "Folk", blurb: "Cajon pulse with slap backbeats." },
@@ -87,21 +87,23 @@ function hits(voices: [DrumVoice, number, number][]): DrumHit[] {
  * bar never rings hollow by accident — sparseness is the renderer's job.
  */
 export const PATTERNS: Record<DrumStyleId, Record<MeterKey, DrumHit[]>> = {
+  // TDR-24: real kit → backbeat on the SNARE (the cross-stick "rim" is a thin
+  // click on a recorded kit; the groove had no weight).
   "acoustic-pop": {
     "4/4": hits([
       ["crash", 0, 0.7], ["kick", 0, 0.9], ["hihat", 0, 0.55],
-      ["hihat", 1, 0.4], ["rim", 2, 0.8], ["hihat", 3, 0.4],
+      ["hihat", 1, 0.4], ["snare", 2, 0.7], ["hihat", 3, 0.4],
       ["kick", 4, 0.85], ["hihat", 4, 0.55], ["hihat", 5, 0.4],
-      ["rim", 6, 0.8], ["kick", 6.5, 0.4], ["hihat", 7, 0.4],
+      ["snare", 6, 0.7], ["kick", 6.5, 0.4], ["hihat", 7, 0.4],
     ]),
     "3/4": hits([
       ["crash", 0, 0.65], ["kick", 0, 0.9], ["hihat", 0, 0.5],
-      ["hihat", 1, 0.4], ["rim", 2, 0.75], ["hihat", 3, 0.4],
-      ["rim", 4, 0.75], ["hihat", 5, 0.45],
+      ["hihat", 1, 0.4], ["snare", 2, 0.65], ["hihat", 3, 0.4],
+      ["snare", 4, 0.65], ["hihat", 5, 0.45],
     ]),
     "6/8": hits([
       ["crash", 0, 0.65], ["kick", 0, 0.9], ["hihat", 0, 0.5],
-      ["hihat", 1, 0.4], ["hihat", 2, 0.45], ["rim", 3, 0.8],
+      ["hihat", 1, 0.4], ["hihat", 2, 0.45], ["snare", 3, 0.7],
       ["kick", 3, 0.7], ["hihat", 4, 0.4], ["hihat", 5, 0.45],
     ]),
   },

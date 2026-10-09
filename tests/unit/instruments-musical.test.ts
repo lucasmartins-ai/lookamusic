@@ -18,6 +18,8 @@ import { planViolinBar } from "@/features/instruments/violin";
 import { planSaxBar } from "@/features/instruments/sax";
 import { planAccordionBar } from "@/features/instruments/accordion";
 import { planDrumsBar } from "@/features/instruments/drums";
+import { planDrums } from "@/features/instruments/planning";
+import { DRUMS_PACK } from "@/features/instruments/packs/drums";
 import { anon, demoPassage } from "../helpers/passage";
 
 const C_MAJOR = { root: 0 as const, quality: "major" as const };
@@ -176,5 +178,31 @@ describe("drums: meter + energy, never pitch", () => {
         expect(down.length).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe("drums on a real kit (TDR-24)", () => {
+  const crashes = (barIndex: number) =>
+    planDrums({ ...demoPassage(), barIndex, energy01: 0.8 }, 1).filter(
+      (e) => e.note.midi === config.instruments.drumGm.crash,
+    ).length;
+
+  it("crash only on the first bar of each section, never every bar", () => {
+    const every = config.instruments.crashEveryBars;
+    expect(crashes(0)).toBeGreaterThan(0);
+    for (let b = 1; b < every; b++) expect(crashes(b), `bar ${b}`).toBe(0);
+    expect(crashes(every)).toBeGreaterThan(0);
+  });
+
+  it("default style backbeat is the snare, not the cross-stick", () => {
+    const hits = planDrums({ ...demoPassage(), style: "acoustic-pop", energy01: 0.8 }, 1);
+    expect(hits.some((e) => e.note.midi === config.instruments.drumGm.snare)).toBe(true);
+    expect(hits.some((e) => e.note.midi === config.instruments.drumGm.rim)).toBe(false);
+  });
+
+  it("kit balance: kick/snare in front of hats and cymbals", () => {
+    const g = (v: string) => DRUMS_PACK.voices.find((x) => x.voice === v)!.gain!;
+    expect(g("crash")).toBeLessThan(g("kick"));
+    expect(g("ride")).toBeLessThan(g("kick"));
   });
 });

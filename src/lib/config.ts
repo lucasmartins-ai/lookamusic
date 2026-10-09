@@ -351,6 +351,8 @@ export const config = {
      * sustentadas em vez de broken-chord corrido (menos notas rápidas).
      */
     pianoCalmEnergyBelow: 0.35,
+    /** TDR-24: crash só no 1º compasso de cada seção de N compassos. */
+    crashEveryBars: 8,
     /** Phase 6+: bass roots sit around this MIDI octave center (C2 = 36). */
     bassRootMidi: 36,
     /** Phase 6+: guitar strum step between strings (seconds). */
