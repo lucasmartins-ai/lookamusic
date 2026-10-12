@@ -80,7 +80,16 @@ export class MicSession {
     );
   }
 
-  async start(): Promise<void> {
+  /**
+   * `voiceProcessing` = browser echo cancellation + noise suppression.
+   * TDR-25: those are SPEECH filters (videocall): they gate sustained notes,
+   * read vibrato as noise and — on macOS/WebKit — switch the input to Apple
+   * Voice Processing, which also ducks the app's own output. Only worth it
+   * when the band plays through speakers while the mic is open (live mode);
+   * hum capture runs with the band muted, so it opens the mic raw.
+   */
+  async start(opts: { voiceProcessing?: boolean } = {}): Promise<void> {
+    const vp = opts.voiceProcessing ?? true;
     if (!MicSession.supported()) {
       this.onStatus(
         "unsupported",
@@ -97,13 +106,12 @@ export class MicSession {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          // Hum-first: a banda toca nos alto-falantes enquanto o mic fica
-          // aberto (play-along). Sem echoCancellation o mic recaptura a
-          // própria banda → notas rápidas/fantasmas + lag em cascata.
-          // noiseSuppression ajuda o detector; autoGain fica fora para
-          // preservar a dinâmica do canto (pitch/energia estáveis).
-          echoCancellation: true,
-          noiseSuppression: true,
+          // Live mode (band in the speakers): echo cancellation keeps the mic
+          // from recapturing the band. Hum capture (band muted): raw input —
+          // the speech filters mangled the sung notes (TDR-25). autoGain is
+          // always off to keep the singing dynamics.
+          echoCancellation: vp,
+          noiseSuppression: vp,
           autoGainControl: false,
         },
       });
@@ -195,6 +203,7 @@ export class MicSession {
       confidence: msg.confidence,
       clarity: msg.clarity,
       timestamp: performance.now(),
+      rms: msg.rms,
     };
     this.onObservation(obs);
     this.autotune.processObservation(obs, this.currentKey);
@@ -231,7 +240,62 @@ export class MicSession {
     this.onStatus(err.status, err);
   }
 
+  /** What the OS actually applied to the mic (diagnostics, TDR-25). */
+  trackSettings(): Record<string, unknown> | null {
+    const track = this.stream?.getAudioTracks()[0];
+    if (!track) return null;
+    try {
+      return { label: track.label, ...track.getSettings(), contextSampleRate: this.ctx?.sampleRate ?? null };
+    } catch {
+      return null;
+    }
+  }
+
+  private recorder: MediaRecorder | null = null;
+  private recorded: Blob[] = [];
+
+  /**
+   * Record the take exactly as the app hears it (same stream as the pitch
+   * worklet) for the session log. Best-effort: no MediaRecorder → no audio.
+   */
+  startRecording(): boolean {
+    if (!this.stream || typeof MediaRecorder === "undefined") return false;
+    try {
+      this.recorded = [];
+      this.recorder = new MediaRecorder(this.stream);
+      this.recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) this.recorded.push(e.data);
+      };
+      this.recorder.start(1000);
+      return true;
+    } catch {
+      this.recorder = null;
+      return false;
+    }
+  }
+
+  /** Stop the take recording; resolves with the audio (or null). */
+  stopRecording(): Promise<Blob | null> {
+    const rec = this.recorder;
+    this.recorder = null;
+    if (!rec || rec.state === "inactive") return Promise.resolve(null);
+    return new Promise((resolve) => {
+      rec.onstop = () => resolve(this.recorded.length ? new Blob(this.recorded, { type: rec.mimeType }) : null);
+      try {
+        rec.stop();
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
   private async teardown(): Promise<void> {
+    try {
+      if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop();
+    } catch {
+      // ignore
+    }
+    this.recorder = null;
     this.autotune.detach();
     try {
       this.node?.port.close();

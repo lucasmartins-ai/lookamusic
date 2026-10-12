@@ -4,6 +4,37 @@
 > `npm test` + `npm run typecheck` + `npm run build` verdes, nesta ordem.
 > A entrada registra os números da verificação.
 
+## [v1.4.4 — Primeiro uso real analisado: microfone baixo e chiado de saturação] — OK
+
+Do primeiro registro real (TDR-25) + relato "uns chiados esquisitos". Ver **TDR-26**.
+
+- **Voz baixa picotada**: o microfone cru do MacBook entrega voz em RMS
+  0,01–0,04 e o limite fixo de silêncio (0,008) cortava as notas. Agora o
+  limite se adapta ao ruído da sala. Mesma tomada: notas **17 → 63**, choque
+  voz×acorde **28% → 14%**.
+- Notas falsas graves (ruído de 55–62 Hz) filtradas: piso do detector 63 Hz.
+- **Chiado/estalo**: a saída não tinha limitador e a soma da banda podia
+  passar de 0 dBFS. Limitador final em −2 dBFS.
+- Vocadito: detector 95,1 → 97,1%, nota certa no tempo 74,3 → 76,5%.
+- Gate: **707/707** unitários (+2 benchmarks opcionais), typecheck 0, build
+  verde, E2E 12/12.
+
+## [v1.4.3 — Registro de cada uso real + microfone sem filtros de fala] — OK
+
+Relato: "no seu teste funciona, mas na prática não" + pedido "salvar os logs
+sempre que eu usar". Ver **TDR-25**.
+
+- **Registro de diagnóstico** no app desktop: cada uso salva neste computador a
+  tomada (áudio como o app ouviu), cada leitura do detector, notas, música
+  montada, eventos e as configurações reais do microfone. Ligado por padrão,
+  com aviso e botão para desligar. `scripts/analyze-session.mjs` reproduz o
+  uso no benchmark.
+- **Cantarolar Primeiro abre o microfone cru**: sem cancelamento de eco/supressão
+  de ruído (filtros de fala que cortam notas e, no Mac, abaixam a saída do app).
+  O modo ao vivo mantém os filtros (banda nos alto-falantes).
+- Gate: **707/707** unitários (+2 benchmarks opcionais), typecheck 0, build
+  verde, E2E 12/12; `cargo check` do comando Rust.
+
 ## [v1.4.2 — Bateria com groove de verdade] — OK
 
 Relato: "a bateria parece sem nexo, só bate o prato, destoa do resto" (ritmo e

@@ -32,6 +32,7 @@ import { LearnPanel } from "@/components/LearnPanel";
 import { useSamplePacks } from "@/features/instruments/useSamplePacks";
 import { SamplePackPanel, SAMPLE_LABELS } from "@/components/SamplePackPanel";
 import { hasRealSound } from "@/features/instruments/sample-store";
+import { SessionLog, loadSessionLogPref, saveSessionLogPref, tauriPersist } from "@/features/diagnostics/session-log";
 import { SampleCredits } from "@/components/SampleCredits";
 import { FeedbackWatcher, looksLikeFeedback } from "@/features/audio/feedback";
 import { SessionStatusStrip } from "@/components/SessionStatusStrip";
@@ -65,7 +66,28 @@ function keyLabel(root: number, mode: string): string {
 
 function SessionBody() {
   const cond = useConductor();
-  const mic = useMicSession(cond.pushObservation);
+  // TDR-25: every usage is logged on this device (take audio, readings,
+  // notes, composition, events) so real sessions can be replayed and tuned.
+  const [logOn, setLogOn] = useState(true);
+  const logOnRef = useRef(true);
+  const [logWhere, setLogWhere] = useState<string | null>(null);
+  const logRef = useRef<SessionLog | null>(null);
+  if (!logRef.current) logRef.current = new SessionLog(tauriPersist() ?? (async () => null), () => logOnRef.current);
+  useEffect(() => {
+    const on = loadSessionLogPref();
+    logOnRef.current = on;
+    setLogOn(on);
+  }, []);
+  const toggleLog = () => {
+    const on = !logOnRef.current;
+    logOnRef.current = on;
+    setLogOn(on);
+    saveSessionLogPref(on);
+  };
+  const mic = useMicSession((obs) => {
+    cond.pushObservation(obs);
+    logRef.current?.obs(obs);
+  });
   const recorder = useRecorder();
   const gestures = useGestures();
   const learn = useLearnSettings();
@@ -131,9 +153,14 @@ function SessionBody() {
     keepLoop.current = false;
     playerRef.current?.stop();
     setLastCleanup(null);
-    if (mic.status !== "running") {
-      await mic.start();
-    }
+    // Raw mic for the take (TDR-25): restart it if it was opened with the
+    // speech filters for live mode.
+    if (mic.status === "running") await mic.stop();
+    await mic.start({ voiceProcessing: false });
+    const log = logRef.current!;
+    log.begin("cantarolar-primeiro", { mic: mic.trackSettings(), voiceProcessing: false, style: cond.styleId });
+    log.setPhase("captura");
+    log.event("recording", { ok: mic.startRecording() });
     setPlayComp(null);
     setPlayhead(0);
     setHumPhase("humming");
@@ -155,9 +182,13 @@ function SessionBody() {
     // STOP while humming), capture cannot have worked — restart it so the next
     // attempt records notes instead of silently producing an empty song.
     if (!cond.isRunning) cond.start();
-    const comp = buildPlayAlongComposition(cond.getMusicalState(), "Cantarolada");
+    const state = cond.getMusicalState();
+    const comp = buildPlayAlongComposition(state, "Cantarolada");
+    const log = logRef.current!;
     if (!comp) {
       setHumMsg("Cante primeiro alguns segundos — nenhuma nota estável captada ainda.");
+      log.event("tocar-banda-sem-notas", { notes: state.melody.length });
+      void log.flush();
       return;
     }
     const clean = lastPlayAlongNotes();
@@ -170,9 +201,29 @@ function SessionBody() {
     // The band keeps its capture silence: the song you hear now is the fixed
     // CompositionPlayer loop, and you sing along on top of it.
     loopPlay(comp);
+    // Session log (after the audio starts — never delays the band).
+    void (async () => {
+      const audio = await mic.stopRecording();
+      log.event("tocar-banda", {
+        tempo: comp.tempo,
+        key: comp.key,
+        notes: comp.melody.length,
+        chords: comp.chords.map((c) => ({ bar: c.startBar, bars: c.durationBars, root: c.chord.root, quality: c.chord.quality })),
+        cleanup: clean?.stats ?? null,
+      });
+      log.setPhase("tocando");
+      await log.write("notes.json", JSON.stringify(state.melody, null, 1));
+      await log.write("composition.json", JSON.stringify(comp, null, 1));
+      await log.writeAudio(audio);
+      await log.flush();
+      setLogWhere(log.lastLocation);
+    })();
   };
 
   const stopHumFlow = () => {
+    const log = logRef.current!;
+    log.event("parar");
+    void log.flush().then(() => log.end());
     keepLoop.current = false;
     playerRef.current?.stop();
     cond.setBandSilenced(false);
@@ -292,17 +343,31 @@ function SessionBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, mic.diagnostics, mic.history]);
 
-  const startSession = () => {
+  const startSession = async () => {
     // Advanced/reactive mode is the only path where the band may sound while
     // the mic is open — make sure a previous capture silence is lifted.
     cond.setBandSilenced(false);
     cond.start();
-    void mic.start();
+    await mic.start({ voiceProcessing: true });
+    const log = logRef.current!;
+    log.begin("ao-vivo", { mic: mic.trackSettings(), voiceProcessing: true, style: cond.styleId });
+    log.setPhase("ao-vivo");
+    log.event("recording", { ok: mic.startRecording() });
   };
 
-  const stopSession = () => {
+  const stopSession = async () => {
+    const log = logRef.current!;
+    const audio = await mic.stopRecording();
+    const state = cond.getMusicalState();
+    log.event("parar", { notes: state.melody.length, chords: state.chords.length, tempo: state.tempo });
     void mic.stop();
     cond.stop();
+    await log.write("notes.json", JSON.stringify(state.melody, null, 1));
+    await log.write("chords.json", JSON.stringify(state.chords, null, 1));
+    await log.writeAudio(audio);
+    await log.flush();
+    setLogWhere(log.lastLocation);
+    log.end();
   };
 
   return (
@@ -465,6 +530,17 @@ function SessionBody() {
             {humMsg}
           </p>
         )}
+        <p className="meta" data-testid="session-log" style={{ overflowWrap: "anywhere" }}>
+          Registro de diagnóstico: <strong>{logOn ? "LIGADO" : "desligado"}</strong> —{" "}
+          {logOn
+            ? logWhere
+              ? `último uso salvo em ${logWhere}`
+              : "cada uso (sua voz, notas, ritmo e o que a banda tocou) fica salvo neste computador para ajustarmos o app. Nada sai daqui."
+            : "nada é gravado."}{" "}
+          <button className="ghost" onClick={toggleLog} data-testid="session-log-toggle" aria-pressed={logOn}>
+            {logOn ? "Desligar registro" : "Ligar registro"}
+          </button>
+        </p>
       </section>
 
       <div className="controls">

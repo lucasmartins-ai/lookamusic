@@ -16,7 +16,11 @@ const BLOCK = 2048;
 // Vocadito note-time accuracy 48.5% → 74.4% with hop 512 + faster stabilizer.
 const HOP = 512;
 const RMS_GATE = 0.008;
-const MIN_FREQ = 55;
+// Adaptive gate (TDR-26), mirrors YinDetector.gateFor.
+const MIN_RMS_GATE = 0.0015;
+const GATE_OVER_FLOOR = 3;
+const NOISE_FLOOR_WINDOW_SEC = 8;
+const MIN_FREQ = 63; // TDR-26: below C2 (65.4 Hz) is room rumble, not voice
 const MAX_FREQ = 1200;
 const YIN_THRESHOLD = 0.1;
 const FFT_SIZE = 4096; // ≥ 2 × BLOCK → linear (not circular) correlation
@@ -69,6 +73,16 @@ class LookaPitchProcessor extends AudioWorkletProcessor {
     this._diff = new Float32Array(BLOCK);
     this._re = new Float64Array(FFT_SIZE);
     this._im = new Float64Array(FFT_SIZE);
+    this._floor = [];
+  }
+
+  _gateFor(rms, sampleRate) {
+    const cap = Math.max(1, Math.round((NOISE_FLOOR_WINDOW_SEC * sampleRate) / HOP));
+    this._floor.push(rms);
+    if (this._floor.length > cap) this._floor.splice(0, this._floor.length - cap);
+    let floor = Infinity;
+    for (let i = 0; i < this._floor.length; i++) if (this._floor[i] < floor) floor = this._floor[i];
+    return Math.min(RMS_GATE, Math.max(MIN_RMS_GATE, floor * GATE_OVER_FLOOR));
   }
 
   process(inputs) {
@@ -100,7 +114,7 @@ class LookaPitchProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < n; i++) energy += buf[i] * buf[i];
     const rms = Math.sqrt(energy / n);
     base.rms = rms;
-    if (rms < RMS_GATE) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
+    if (rms < this._gateFor(rms, sampleRate)) return { ...base, frequency: -1, midiNote: -1, confidence: 0, clarity: 0 };
 
     const minLag = Math.max(2, Math.floor(sampleRate / MAX_FREQ));
     const maxLag = Math.min(Math.floor(n / 2), Math.ceil(sampleRate / MIN_FREQ));

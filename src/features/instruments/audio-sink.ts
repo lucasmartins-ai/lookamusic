@@ -106,6 +106,26 @@ export function createMasterBus(ctx: BaseAudioContext, destination: AudioNode): 
     createDynamicsCompressor?: () => DynamicsCompressorNode;
     createConvolver?: () => ConvolverNode;
   };
+  // TDR-26: brick-wall-ish limiter LAST (after comp + room). The 4:1 comp
+  // with 4 ms attack let summed kick+snare+piano+violão transients past
+  // 0 dBFS and the room send bypassed it → digital clipping heard as
+  // "chiados". Nothing leaves the bus above ≈ −1 dBFS.
+  let out: AudioNode = destination;
+  try {
+    const makeLim = factory.createDynamicsCompressor?.bind(ctx);
+    if (makeLim) {
+      const lim = makeLim();
+      lim.threshold.value = -2;
+      lim.knee.value = 0;
+      lim.ratio.value = 20;
+      lim.attack.value = 0.001;
+      lim.release.value = 0.08;
+      lim.connect(destination);
+      out = lim;
+    }
+  } catch {
+    out = destination;
+  }
   try {
     const makeComp = factory.createDynamicsCompressor?.bind(ctx);
     if (makeComp) {
@@ -116,13 +136,13 @@ export function createMasterBus(ctx: BaseAudioContext, destination: AudioNode): 
       comp.attack.value = 0.004;
       comp.release.value = 0.18;
       input.connect(comp);
-      comp.connect(destination);
+      comp.connect(out);
     } else {
-      input.connect(destination);
+      input.connect(out);
     }
   } catch {
     try {
-      input.connect(destination);
+      input.connect(out);
     } catch {
       // Sem saída — nunca quebra o chamador.
     }
@@ -136,7 +156,7 @@ export function createMasterBus(ctx: BaseAudioContext, destination: AudioNode): 
       wet.gain.value = 0.14;
       input.connect(verb);
       verb.connect(wet);
-      wet.connect(destination);
+      wet.connect(out);
     }
   } catch {
     // Sem sala, a banda segue comprimida — nunca quebra o som.

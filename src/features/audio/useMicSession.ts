@@ -74,7 +74,7 @@ export function useMicSession(onObservation?: (obs: PitchObservation) => void) {
     sessionRef.current?.setKey(key);
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (opts: { voiceProcessing?: boolean } = {}) => {
     if (runningRef.current) return;
     setError(null);
     const session = new MicSession(
@@ -93,7 +93,7 @@ export function useMicSession(onObservation?: (obs: PitchObservation) => void) {
     );
     session.autotune.updateConfig(autotuneConfig);
     sessionRef.current = session;
-    await session.start();
+    await session.start(opts);
   }, [autotuneConfig]);
 
   const stop = useCallback(async () => {
@@ -110,7 +110,14 @@ export function useMicSession(onObservation?: (obs: PitchObservation) => void) {
     };
   }, []);
 
+  const startRecording = useCallback(() => sessionRef.current?.startRecording() ?? false, []);
+  const stopRecording = useCallback(async () => (await sessionRef.current?.stopRecording()) ?? null, []);
+  const trackSettings = useCallback(() => sessionRef.current?.trackSettings() ?? null, []);
+
   return {
+    startRecording,
+    stopRecording,
+    trackSettings,
     status,
     error,
     current,

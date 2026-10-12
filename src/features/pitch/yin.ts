@@ -83,6 +83,8 @@ export class YinDetector implements PitchDetector {
   private readonly diff: Float32Array;
   private readonly re: Float64Array;
   private readonly im: Float64Array;
+  /** Recent window RMS values (adaptive noise floor, TDR-26). */
+  private floorRing: number[] = [];
 
   constructor(maxBlock = 4096) {
     this.diff = new Float32Array(maxBlock);
@@ -92,7 +94,24 @@ export class YinDetector implements PitchDetector {
   }
 
   reset(): void {
-    // stateless per block
+    this.floorRing = [];
+  }
+
+  /**
+   * Adaptive voicing gate: noise floor = min RMS over the last
+   * `noiseFloorWindowSec`; gate = clamp(gateOverFloor × floor, minRmsGate,
+   * rmsGate). A quiet raw mic (voice 0.01–0.04, room 0.0015) no longer gets
+   * chopped by the fixed 0.008 gate; a loud room keeps the old ceiling.
+   * `windowsPerSec` = analyses per second (sampleRate / hop).
+   */
+  gateFor(rms: number, windowsPerSec: number): number {
+    const p = config.pitch;
+    const cap = Math.max(1, Math.round(p.noiseFloorWindowSec * windowsPerSec));
+    this.floorRing.push(rms);
+    if (this.floorRing.length > cap) this.floorRing.splice(0, this.floorRing.length - cap);
+    let floor = Infinity;
+    for (const v of this.floorRing) if (v < floor) floor = v;
+    return Math.min(p.rmsGate, Math.max(p.minRmsGate, floor * p.gateOverFloor));
   }
 
   process(buffer: Float32Array, sampleRate: number): PitchObservation {
@@ -105,7 +124,8 @@ export class YinDetector implements PitchDetector {
       timestamp,
     };
     if (buffer.length > this.diff.length) return unvoiced;
-    if (rmsOf(buffer) < config.pitch.rmsGate) return unvoiced;
+    const level = rmsOf(buffer);
+    if (level < this.gateFor(level, sampleRate / config.audio.hopSize)) return unvoiced;
 
     const { minFreq, maxFreq, yinThreshold } = config.pitch;
     const minLag = Math.max(2, Math.floor(sampleRate / maxFreq));

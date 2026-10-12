@@ -12,6 +12,8 @@
 - **v1.4.0 (pedido do usuário):** transcrição medida contra anotação humana (Vocadito: onsets 24→74%, nota no tempo 48,5→74,3%; hop 512 + YIN via FFT) e só instrumentos gravados (bateria Virtuosity, piano Salamander 2 camadas, baixo, violino, cordas; sem sintetizador). TDR-22 — OK (696/696 testes, typecheck 0, build verde, E2E 12/12; ver CHANGELOG)
 - **v1.4.1 (pedido do usuário):** Cantarolar Primeiro no pulso (beat tracking da tomada, 162→32 ms), loop emendado, sem melodia-guia, bateria/violão equilibrados, "Reação da banda" só no ao vivo. TDR-23 — OK (699/699 testes, typecheck 0, build verde, E2E 12/12; ver CHANGELOG)
 - **v1.4.2 (pedido do usuário):** bateria com groove — crash só no início de seção, caixa no contratempo, equilíbrio do kit. TDR-24 — OK (702/702 testes, typecheck 0, build verde, E2E 12/12; ver CHANGELOG)
+- **v1.4.3 (pedido do usuário):** registro de cada uso real no app desktop (áudio, leituras, notas, música, eventos, mic) + microfone cru no Cantarolar Primeiro. TDR-25 — OK (707/707 testes, typecheck 0, build verde, E2E 12/12; ver CHANGELOG)
+- **v1.4.4 (primeiro uso real registrado):** gate adaptativo ao ruído da sala, piso 63 Hz, limitador final contra chiado. TDR-26 — OK (707/707 testes, typecheck 0, build verde, E2E 12/12; ver CHANGELOG)
 - **Próxima fase:** a definir — Fase 17 ainda sem prompt em `docs/prompts/` (não executar nada novo sem prompt)
 
 ## Todo-list das fases (só marque OK com o gate do AGENTS.md §3 verde)

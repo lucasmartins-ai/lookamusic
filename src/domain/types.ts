@@ -18,6 +18,8 @@ export interface PitchObservation {
   clarity: Confidence;
   /** performance.now() domain ms at detection. */
   timestamp: number;
+  /** Input RMS of the analysed window (mic path only; diagnostics). */
+  rms?: number;
 }
 
 export const UNVOICED = -1;

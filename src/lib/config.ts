@@ -32,8 +32,23 @@ export const config = {
   pitch: {
     /** Below this RMS the frame is unvoiced silence. */
     rmsGate: 0.008,
-    /** Detector search range (covers E1–C6 voice + instrument headroom). */
-    minFreq: 55,
+    /**
+     * TDR-26 (registro real do usuário): microfone cru do MacBook entrega voz
+     * em RMS 0,01–0,04 e silêncio em ~0,0015 — o gate fixo de 0,008 picotava
+     * as notas. O gate efetivo vira clamp(gateOverFloor × chão de ruído,
+     * minRmsGate, rmsGate), com o chão = menor RMS dos últimos
+     * noiseFloorWindowSec (respirações renovam o chão).
+     */
+    minRmsGate: 0.0015,
+    gateOverFloor: 3,
+    noiseFloorWindowSec: 8,
+    /**
+     * Detector search range. TDR-26: floor 55 → 63 Hz — on a real raw-mic take
+     * the adaptive gate let room/laptop rumble through as A1–B1 (55–62 Hz)
+     * "notes"; 63 Hz still keeps C2 (65.4 Hz), the lowest sung bass note
+     * in the acceptance spec.
+     */
+    minFreq: 63,
     maxFreq: 1200,
     /** Detector-internal voicing floor; musical gating happens downstream. */
     minConfidence: 0.25,
@@ -623,6 +638,13 @@ export const config = {
     recentNotesWindow: 8,
     /** Phase 13+: janela de acordes recentes para análise de progressão. */
     recentChordsWindow: 6,
+  },
+  diagnostics: {
+    /**
+     * TDR-25: teto de leituras de altura por sessão no log (~94/s com hop
+     * 512 → ~35 min). Acima disso o log para de crescer (memória limitada).
+     */
+    maxObservations: 200_000,
   },
   coach: {
     /** Cents tolerance for perfect in-tune (+-12 cents). */

@@ -29,7 +29,7 @@ or usage data in Phases 1–16. Specifically:
 
 | Data | Where it goes |
 |---|---|
-| Raw microphone audio | Nowhere — processed locally via AudioWorklet, never stored |
+| Raw microphone audio | Processed locally via AudioWorklet. **Desktop app only:** while "Registro de diagnóstico" is ON (default, switch on `/session`), each usage's take audio, pitch readings, notes, composition and events are saved on this computer in `~/Library/Application Support/com.lookamusic.desktop/sessoes/` so sessions can be replayed to tune the app. Never uploaded; turn it off any time, delete the folder to erase. |
 | Camera frames | Nowhere — classified in memory on-device, discarded immediately |
 | Detected notes / chords / tempo | Browser memory only |
 | Educational explanations | Computed in pure TypeScript locally (zero LLM / cloud APIs) |

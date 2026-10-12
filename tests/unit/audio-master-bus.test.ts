@@ -67,19 +67,24 @@ function stubCtx() {
 }
 
 describe("createMasterBus", () => {
-  it("contains the input gain and glues with a gentle compressor", () => {
-    const { ctx, comps } = stubCtx();
+  it("glue compressor → final limiter → destination (TDR-26: no clipping)", () => {
+    const { ctx, comps, verbs } = stubCtx();
     const destination = stubNode();
     const bus = createMasterBus(
       ctx as unknown as BaseAudioContext,
       destination as unknown as AudioNode,
     );
     expect(bus.input.gain.value).toBeCloseTo(0.8, 9);
-    expect(comps).toHaveLength(1);
-    const comp = comps[0];
-    expect(comp.threshold.value).toBe(-18);
-    expect(comp.ratio.value).toBe(4);
-    expect(comp.connections).toContain(destination);
+    expect(comps).toHaveLength(2);
+    const limiter = comps.find((c) => c.ratio.value === 20)!;
+    const glue = comps.find((c) => c.ratio.value === 4)!;
+    expect(limiter.threshold.value).toBe(-2);
+    expect(limiter.connections).toContain(destination);
+    expect(glue.threshold.value).toBe(-18);
+    // Everything (glue + room) reaches the speakers only through the limiter.
+    expect(glue.connections).toContain(limiter);
+    expect(glue.connections).not.toContain(destination);
+    expect(verbs).toHaveLength(1);
     expect(() => bus.dispose()).not.toThrow();
   });
 
